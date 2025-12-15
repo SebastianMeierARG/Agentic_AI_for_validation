@@ -1,0 +1,11 @@
+llm_settings:
+  model: "gpt-4o"
+  temperature: 0.0
+
+paths:
+  input_csv: "rcm_input.csv"
+  output_json: "audit_results.json"
+  documents_folder: "documents/"
+
+validation:
+  enable_self_critique: true

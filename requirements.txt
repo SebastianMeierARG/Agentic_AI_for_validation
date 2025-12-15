@@ -1,0 +1,12 @@
+pandas
+openai
+langchain
+langchain-openai
+langchain-community
+pypdf
+faiss-cpu
+python-dotenv
+jinja2
+jupyter
+pyyaml
+tiktoken
