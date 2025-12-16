@@ -85,7 +85,7 @@ class RcmAuditor:
             print(f"Input CSV not found: {input_path}")
             return
 
-        df = pd.read_csv(input_path)
+        df = pd.read_csv(input_path, sep=';')
         results = []
 
         # Ensure RAG is ready

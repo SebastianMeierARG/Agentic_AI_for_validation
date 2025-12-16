@@ -1,6 +1,6 @@
 llm_settings:
   model: "gpt-4o"
-  temperature: 0.0
+  temperature: 0.1
 
 paths:
   input_csv: "rcm_input.csv"
