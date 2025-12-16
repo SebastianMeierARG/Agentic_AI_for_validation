@@ -12,7 +12,10 @@ class RagEngine:
         self.documents_path = CONFIG['paths']['documents_folder']
         self.vector_store = None
         
-        # Initialize LLM for translation
+        # Load document language from config
+        self.doc_language = CONFIG['rag_settings'].get('document_language', 'English')
+
+        # Initialize LLM for translation/HyDE
         self.llm = ChatOpenAI(
             model=CONFIG['llm_settings']['model'],
             temperature=CONFIG['llm_settings']['temperature']
@@ -66,12 +69,16 @@ class RagEngine:
         else:
             print("No text chunks created.")
 
-    def translate_query(self, query):
-        """Translates an English query to Spanish using the LLM."""
-        system_prompt = "You are a helpful translator. Translate the following audit query from English to Spanish to match technical banking documentation language."
+    def generate_search_query(self, query):
+        """Generates a hypothetical answer (HyDE) in the target document language."""
+        system_prompt = (
+            f"You are an expert Auditor. The user is asking: '{query}'.\n"
+            f"Your task: Write a HYPOTHETICAL text snippet in {self.doc_language} that answers this question using technical banking vocabulary.\n"
+            "Output ONLY the hypothetical statement."
+        )
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=query)
+            SystemMessage(content="You are a helpful assistant."),
+            HumanMessage(content=system_prompt)
         ]
         response = self.llm.invoke(messages)
         return response.content
@@ -85,12 +92,10 @@ class RagEngine:
         if not self.vector_store:
             return []
         
-        # Translate query if needed (assuming input is English, docs are Spanish)
-        # We'll just always translate to ensure better matching if the query is English-like
-        # A simple check could be added, but the instruction implies "if the query is in English"
-        # We will assume the audit queries are English as per the CSV content
-        translated_query = self.translate_query(query)
+        # Use HyDE to generate search query
+        print(f"DEBUG: Generating HyDE query in {self.doc_language}...")
+        search_query = self.generate_search_query(query)
         print(f"Original Query: {query[:50]}...")
-        print(f"Translated Query: {translated_query[:50]}...")
+        print(f"HyDE Search Query: {search_query[:50]}...")
 
-        return self.vector_store.similarity_search(translated_query, k=k)
+        return self.vector_store.similarity_search(search_query, k=k)

@@ -8,8 +8,8 @@
         "Test Procedures ": "Test 1.1: Obtain the IFRS 9 Policy. Verify the approval date and signature. Confirm it was approved by the Board or ALCO.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the methodology for classifying operations into different stages based on risk, including the 'contagio de stage' methodology and criteria for reclassification to Stage 2 or Stage 3. Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 0, Page 13, Page 5, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. The context contains detailed information about credit card balances, private titles, loans, and the methodology for segmenting operations, among other topics. However, the AI answer fails to reference any of this information or explain its relevance to the audit query. Therefore, the answer is considered a hallucination or irrelevant to the provided context.",
+        "Evidence_Sources": "Page 4, Page 5, Page 4, Page 5, Page 7"
     },
     {
         "#": 2.0,
@@ -20,8 +20,8 @@
         "Test Procedures ": "Test 1.2: Review Policy 'Scope' and 'Definitions'. Confirm explicit references to IFRS 9 para 5.5 and relevant local circulars.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes detailed information about the procedures and methodologies related to the classification of financial operations and the calculation of Expected Credit Losses (Pérdida Crediticia Esperada). Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 5, Page 6"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the responsibilities and procedures related to the estimation of credit losses, including the roles of different management levels and the requirement for independent validation. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 2, Page 4, Page 3, Page 1, Page 5"
     },
     {
         "#": 3.0,
@@ -32,8 +32,8 @@
         "Test Procedures ": "Test 1.3: Review the Methodological Manual. Verify detailed chapters exist for every risk parameter (PD, LGD, EAD, FLI).",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the procedures and methodologies related to the classification of financial operations, the calculation of expected credit losses, and the responsibilities of various management roles. Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 2, Page 13, Page 0"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about procedures related to the estimation of credit losses, validation processes, and responsibilities of various departments. Therefore, the answer does not accurately reflect the content of the context and is considered a hallucination.",
+        "Evidence_Sources": "Page 5, Page 4, Page 5, Page 5, Page 3"
     },
     {
         "#": 5.0,
@@ -44,8 +44,8 @@
         "Test Procedures ": "Test 1.5: Review (if there is) 'Roles & Responsibilities' section. Verify that the team developing the model is different from the team validating it.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is not a faithful handling of the evidence. The context provided contains detailed information about the methodology and procedures related to the classification of financial operations into different stages, the responsibilities of various management roles, and the criteria for determining the Probability of Default (PD) and Loss Given Default (LGD). The answer does not engage with any of this information, making it irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 0, Page 22, Page 5, Page 2"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the procedures and responsibilities related to the estimation of Expected Credit Losses (PCE), including the roles of Marcela Buiguez and the Gerencia de Riesgos y Cumplimiento. It also mentions the commitment to send updated documentation and the independent validation of the PCE model. Therefore, the answer does not accurately reflect the provided context.",
+        "Evidence_Sources": "Page 4, Page 5, Page 4, Page 5, Page 5"
     },
     {
         "#": 9.0,
@@ -56,8 +56,8 @@
         "Test Procedures ": "Test 2.1: Check the date range of training data. Does it include a downturn/crisis period?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about various procedures and methodologies related to credit risk assessment and classification, including the methodology of 'contagio de stage,' criteria for classifying operations in different stages, and the responsibilities of different management roles. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 6, Page 5, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the procedures and responsibilities related to the estimation of Expected Credit Losses (PCE), including the roles of different management levels and the steps being taken to address the lack of independent validation. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 4, Page 5, Page 5, Page 3, Page 1"
     },
     {
         "#": 16.0,
@@ -66,10 +66,10 @@
         "Control Reference": 3.1,
         "Design Effectiveness Assessment": "Does segmentation adequately distinguish between collective and individual treatment, where applicable?",
         "Test Procedures ": "Test 3.1: Review the Segmentation Policy. Verify that clear, mutually exclusive criteria (whether quantitative thresholds, specific risk characteristics, or lack of historical data) are defined to assign exposures to either Individual or Collective assessment.",
-        "AI_Answer": "Not Documented in provided context.",
-        "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes a section titled '3.1 Directorio' on Page 2, which outlines the responsibilities of the Directorio, including approving the model of estimation of financial asset deterioration and the parameters used in the model. Therefore, the AI's response is a hallucination and does not accurately reflect the provided context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 2, Page 13, Page 5"
+        "AI_Answer": "Control Ref: 3.1. Procedure:\n\nThe procedure involves the responsibilities of the Board of Directors regarding the framework for determining expected credit losses. The Board is responsible for ensuring that the bank has an adequate, effective, viable, and consistent framework that is properly documented for determining credit losses over the expected life of the financial instruments of the entity. Specifically, the Board must:\n\n1. Approve the model for estimating the impairment of financial assets, which must be in accordance with Point 5.5 of IFRS 9.\n2. Approve the parameters used in the model.\n\nThis information is documented on Page 1.",
+        "Validation_Score": 10,
+        "Validation_Reasoning": "The AI-generated answer accurately reflects the responsibilities of the Board of Directors as outlined in the context. It correctly identifies the Board's duties to approve the model for estimating impairment of financial assets and the parameters used in the model, in accordance with Point 5.5 of IFRS 9. The answer also correctly states that this information is documented on Page 1 of the context. Therefore, the answer is faithful to the provided evidence.",
+        "Evidence_Sources": "Page 2, Page 4, Page 1, Page 3, Page 5"
     },
     {
         "#": 17.0,
@@ -78,10 +78,10 @@
         "Control Reference": 3.2,
         "Design Effectiveness Assessment": "Is there a defined process (quantitative and/or qualitative) to determine and review segmentation (homogeneity/heterogeneity, concentration, stability, etc.)?",
         "Test Procedures ": "Test 3.2: Request the last \"Segmentation Review\" report. Did they check if segments are still distinct?",
-        "AI_Answer": "Not Documented in provided context.",
-        "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes detailed information about the responsibilities of the Gerencia de Riesgo y Cumplimiento, which is relevant to the audit query. Specifically, the context on Page 2 under '3.2 Gerencia de Riesgo y Cumplimiento' outlines the responsibilities related to the development and approval of the model for estimating asset deterioration, which should have been referenced in the answer.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 6, Page 13"
+        "AI_Answer": "The audit query refers to Control Ref: 3.2, which involves the responsibilities of the Gerencia de Riesgo y Cumplimiento. According to the provided context:\n\n1. The Gerencia de Riesgo y Cumplimiento is responsible for participating with the Gerencia de Riesgo Crediticio in the development of the model for estimating the impairment of financial assets, ensuring it aligns with the requirements of Point 5.5 of IFRS 9. This model should be reviewed at least annually or whenever events or situations arise that may alter the adopted methodology (Page 2).\n\n2. They are also responsible for submitting the model for estimating the impairment of financial assets and any modifications to the Board for approval (Page 2).\n\n3. Additionally, they must submit the parameters used in the model to the Board for approval (Page 2).\n\nThese responsibilities are clearly documented in the context provided.",
+        "Validation_Score": 10,
+        "Validation_Reasoning": "The AI-generated answer accurately reflects the responsibilities of the Gerencia de Riesgo y Cumplimiento as outlined in the context. It correctly identifies their role in developing the model for estimating the impairment of financial assets, ensuring alignment with IFRS 9, and the requirement for annual reviews or adjustments as needed. It also correctly notes the responsibility to submit the model and its parameters to the Board for approval. All points mentioned in the answer are directly supported by the context on Page 2.",
+        "Evidence_Sources": "Page 2, Page 3, Page 4, Page 3, Page 1"
     },
     {
         "#": NaN,
@@ -92,8 +92,8 @@
         "Test Procedures ": "Test 3.6: Request the last \"Segmentation Review\" report. Did they check if segments are still distinct?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a correct observation if the specific 'Control Ref: 3.6. Procedure' is not mentioned in the provided context. However, the context provided is extensive and covers various aspects of the policy and procedures related to credit risk and expected credit loss calculations. Without a specific reference to 'Control Ref: 3.6. Procedure' in the context, the answer is technically correct but lacks depth or engagement with the provided material. Therefore, it is scored as a 0 for not providing any relevant information or analysis based on the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 13, Page 2"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about various procedures and methodologies related to credit risk assessment and classification, including references to the calculation of Expected Credit Loss (PCE) and related procedures. Therefore, the answer does not faithfully handle the evidence from the context.",
+        "Evidence_Sources": "Page 3, Page 5, Page 3, Page 7, Page 4"
     },
     {
         "#": 21.0,
@@ -104,8 +104,8 @@
         "Test Procedures ": "Test 4.1: Verify Policy text explicitly mentions \"90 days\" and lists UTP triggers (bankruptcy, restructuring).",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes a section titled '4.1 Segmentación de la cartera' on Page 0, which is relevant to the audit query regarding Control Ref: 4.1. Therefore, the answer does not faithfully handle the evidence and is considered a hallucination.",
-        "Evidence_Sources": "Page 3, Page 0, Page 13, Page 5, Page 2"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes detailed information about the segmentation of the portfolio, which is relevant to Control Ref: 4.1. Procedure. Specifically, the context on Page 4 discusses the initial classification of the entity's portfolio into individual and collective treatment, which directly relates to the audit query. Therefore, the AI's response is a hallucination and does not adhere to the context.",
+        "Evidence_Sources": "Page 4, Page 5, Page 5, Page 5, Page 3"
     },
     {
         "#": 22.0,
@@ -116,8 +116,8 @@
         "Test Procedures ": "Test 4.2: Compare the Default definition in the IFRS 9 Manual vs. the Basel/Capital Manual. They should match.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes detailed information about the classification of assets, specifically under section 4.2, which outlines the criteria for classifying operations into different stages based on credit risk. Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 0, Page 5, Page 5, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided includes detailed information about the classification of assets under section 4.2, which outlines the criteria for classifying financial assets into different stages based on credit risk, as per NIIF 9. Therefore, the answer does not accurately reflect the information available in the context.",
+        "Evidence_Sources": "Page 2, Page 4, Page 1, Page 3, Page 3"
     },
     {
         "#": 23.0,
@@ -128,8 +128,8 @@
         "Test Procedures ": "Test 5.1: Review Policy. Look for the \"Pulling Effect\" rule (e.g., if 20% of exposure is default, all is default).",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive information about methodologies, procedures, and responsibilities related to the estimation of credit losses and risk management. The answer does not attempt to address or reference any specific part of the context, making it irrelevant to the provided context.",
-        "Evidence_Sources": "Page 3, Page 0, Page 22, Page 0, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or relate to any specific information in the provided context. The context contains detailed information about the validation of the Expected Credit Loss (PCE) model, responsibilities, and timelines, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
+        "Evidence_Sources": "Page 5, Page 4, Page 5, Page 5, Page 4"
     },
     {
         "#": 25.0,
@@ -140,8 +140,8 @@
         "Test Procedures ": "Test 5.3: Identify a client with one defaulted loan. Check if their other performing loans are flagged as Stage 3.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains extensive documentation on various procedures related to the classification of assets, methodology for calculating expected credit losses, and responsibilities of different management roles. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 22, Page 5, Page 13, Page 0"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the methodology for calculating expected credit losses, responsibilities of the board and management, and the validation process for the model. The answer fails to address any of these aspects or relate them to the audit query, making it irrelevant and a hallucination.",
+        "Evidence_Sources": "Page 1, Page 4, Page 2, Page 5, Page 5"
     },
     {
         "#": 26.0,
@@ -152,8 +152,8 @@
         "Test Procedures ": "Test 6.1: Verify the document explains how the PD is calculated step-by-step (Formulas, Variables).",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is not a faithful handling of the evidence. The context provided contains detailed information about the validation process, responsibilities, and methodologies related to the estimation of Expected Credit Losses (PCE) and other related procedures. The AI answer fails to reference or acknowledge any of this information, making it irrelevant to the context provided.",
-        "Evidence_Sources": "Page 5, Page 3, Page 0, Page 5, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the procedures and responsibilities related to the estimation of credit losses, including the validation of models and the roles of various departments and individuals. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 5, Page 4, Page 4, Page 5, Page 5"
     },
     {
         "#": 27.0,
@@ -164,8 +164,8 @@
         "Test Procedures ": "Test 6.2: Check if the PD fluctuates with the economic cycle (Variable Scalar or FLI overlay). TTC is invalid for IFRS 9.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a generic response and does not engage with the specific content of the context provided. The context includes detailed information about methodologies, procedures, and responsibilities related to the estimation of credit losses and risk management, but the AI answer does not reference or analyze any of this information. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 0, Page 22"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the validation of the Expected Credit Loss (PCE) model, including the commitment to conduct an independent validation and the timeline for documentation submission. The context also mentions the responsible person and the compliance with BCRA and Basel Committee guidelines. Therefore, the AI answer does not accurately reflect the provided context.",
+        "Evidence_Sources": "Page 5, Page 5, Page 4, Page 4, Page 3"
     },
     {
         "#": 28.0,
@@ -176,8 +176,8 @@
         "Test Procedures ": "Test 6.3: Review the marginal PD calculation. Does it account for prepayments and natural maturity?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about various procedures and methodologies related to credit risk assessment and classification, including the methodology of 'contagio de stage,' criteria for stage classification, and responsibilities of different management roles. Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 13, Page 0"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on the procedures related to the estimation of credit losses, risk management, and validation processes. The answer does not engage with any of the specific details or procedures outlined in the context, such as the roles of different management teams, the stages of credit risk, or the independent validation process. Therefore, the answer is irrelevant to the context provided.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 3, Page 3"
     },
     {
         "#": 30.0,
@@ -188,8 +188,8 @@
         "Test Procedures ": "Test 6.5: Review the latest Backtesting Report. Look for \"Red/Amber/Green\" status on PD calibration.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a generic response and does not engage with the specific content of the context provided. The context includes detailed information about methodologies, procedures, and responsibilities related to credit risk and expected credit loss calculations, but the AI answer does not reference or analyze any of this information. Therefore, the answer is irrelevant to the context and does not address the audit query in any meaningful way.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 22, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains detailed information about various procedures, responsibilities, and methodologies related to risk management and credit loss estimation. The AI answer fails to address any specific part of the context or relate to the audit query, thus scoring a 0 for irrelevance.",
+        "Evidence_Sources": "Page 5, Page 4, Page 5, Page 4, Page 5"
     },
     {
         "#": 32.0,
@@ -200,8 +200,8 @@
         "Test Procedures ": "Test 7.1: Verify LGD is not \"one size fits all\". Expect different LGDs for Secured vs Unsecured.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the methodology and procedures related to the classification of financial operations, the stages of credit risk, and the responsibilities of various management roles. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 5, Page 22"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. It fails to engage with the content of the context or the audit query, making it a complete hallucination. The context provides detailed information about policies, responsibilities, and methodologies related to credit risk and expected credit loss, but the AI answer does not reference or utilize any of this information.",
+        "Evidence_Sources": "Page 2, Page 3, Page 4, Page 1, Page 5"
     },
     {
         "#": 34.0,
@@ -212,8 +212,8 @@
         "Test Procedures ": "Test 7.3: Verify the discount rate used. If \"Risk Free Rate\" is used, it's a finding. Must be EIR.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a generic response and does not engage with the specific content of the provided context. The context contains detailed information about methodologies, procedures, and responsibilities related to credit risk and expected credit loss calculations, but the AI answer does not reference or analyze any of this information. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 5, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query with any specific information from the provided context. The context contains detailed information about the implementation and validation of the model for estimating Expected Credit Losses (PCE), responsibilities, and timelines, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
+        "Evidence_Sources": "Page 4, Page 5, Page 5, Page 1, Page 4"
     },
     {
         "#": 36.0,
@@ -224,8 +224,8 @@
         "Test Procedures ": "Test 7.5: Check policy for \"Write-off\" rules. Are assets >2 years past due provisioned at 100%?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or relate to any specific information in the provided context. The context contains detailed information about methodologies, responsibilities, and procedures related to risk management and credit loss estimation, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 22, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the policies and procedures related to the estimation of credit losses, the responsibilities of various management roles, and the validation of models, among other things. The answer fails to address any specific part of the context or the audit query, making it irrelevant and a hallucination.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 1, Page 4"
     },
     {
         "#": 38.0,
@@ -236,8 +236,8 @@
         "Test Procedures ": NaN,
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information on various procedures and methodologies related to credit risk assessment and expected credit loss calculation, including specific responsibilities and processes. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 5, Page 22"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the procedures and responsibilities related to the validation of the model for estimating Expected Credit Losses (PCE), including the commitment to send updated documentation and the involvement of Marcela Buiguez. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 4, Page 5, Page 5, Page 5, Page 2"
     },
     {
         "#": 40.0,
@@ -248,8 +248,8 @@
         "Test Procedures ": "Test 8.1: Review EAD Formula. Must include \"Off-Balance Sheet\" component.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or provide any relevant information from the context. The context contains detailed information about methodologies, procedures, and responsibilities related to the estimation of credit losses and risk management, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 0, Page 5, Page 13, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or relate to any specific information in the provided context. The context contains detailed information about the responsibilities, methodologies, and compliance issues related to the estimation of Expected Credit Losses (PCE) and other financial procedures, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
+        "Evidence_Sources": "Page 4, Page 1, Page 5, Page 5, Page 2"
     },
     {
         "#": 41.0,
@@ -260,8 +260,8 @@
         "Test Procedures ": "Test 8.2: Check CCF table. Are there CCFs for Credit Cards, Overdrafts, and Guarantees?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures related to credit risk management, including methodologies for stage classification, criteria for significant risk increase, and procedures for expected credit loss estimation. Therefore, the answer does not faithfully handle the evidence from the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 13, Page 0"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is not a faithful handling of the evidence. The context provides detailed information about the procedures and responsibilities related to the estimation of credit losses and the validation of models, which could potentially relate to the audit query. The answer does not attempt to connect any part of the context to the audit query, resulting in a score of 0 for irrelevance.",
+        "Evidence_Sources": "Page 5, Page 4, Page 5, Page 4, Page 5"
     },
     {
         "#": 45.0,
@@ -272,8 +272,8 @@
         "Test Procedures ": "Test 8.6: Check if FX rates are applied correctly to EAD for foreign currency loans.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the methodology for classifying operations into different stages based on credit risk, the process for handling clients entering preventive agreements, and the criteria for considering external risk signals. These are relevant to the audit query regarding control procedures. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 0, Page 13, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the procedures and responsibilities related to the estimation of Expected Credit Losses (PCE), including the roles of different management teams and the requirement for independent validation. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 4, Page 2, Page 5, Page 1, Page 4"
     },
     {
         "#": 48.0,
@@ -284,8 +284,8 @@
         "Test Procedures ": "Test 9.3: Verify the Provisioning Report shows 3 distinct ECL results weighted together.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. The context contains detailed information about the methodology and procedures related to the classification of financial operations and the estimation of credit losses, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is considered a hallucination or irrelevant to the provided context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 13, Page 2, Page 4"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. The context contains detailed information about the validation of the model for estimating Expected Credit Losses (PCE), the responsibilities of various departments, and the planned actions to address the audit observations. However, the AI answer fails to reference any of this information or provide a meaningful response to the audit query. Therefore, it is considered a hallucination or irrelevant response.",
+        "Evidence_Sources": "Page 5, Page 5, Page 4, Page 2, Page 4"
     },
     {
         "#": 50.0,
@@ -296,8 +296,8 @@
         "Test Procedures ": "Test 10.1: Review the FLI Model Validation Report. Look for stationarity and cointegration tests.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive information on various procedures and methodologies related to risk management and credit loss estimation. The answer does not attempt to address or reference any specific part of the context, making it irrelevant to the provided context.",
-        "Evidence_Sources": "Page 3, Page 0, Page 13, Page 5, Page 1"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the policies, responsibilities, and procedures related to the estimation of credit losses and risk management at Banco Bica S.A. The context includes specific roles and responsibilities of different management levels, the methodology for estimating credit losses, and the classification of financial assets, all of which are relevant to the audit query. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 2, Page 4, Page 3, Page 13, Page 5"
     },
     {
         "#": 56.0,
@@ -308,8 +308,8 @@
         "Test Procedures ": "Test 11.1: Re-calculate one loan's ECL in Excel using the inputs. Match to system result.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures and policies related to credit risk management, including methodologies for stage classification, expected credit loss calculation, and responsibilities of different management roles. The answer does not engage with any of this information, making it irrelevant to the context.",
-        "Evidence_Sources": "Page 3, Page 13, Page 5, Page 22, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. The context contains detailed information about the policies and procedures related to the estimation of credit losses, responsibilities of various management roles, and specific methodologies in place. However, the AI answer fails to reference any of this information or provide a meaningful response to the audit query. Therefore, it is considered a hallucination or irrelevant response.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 3, Page 1"
     },
     {
         "#": 57.0,
@@ -320,8 +320,8 @@
         "Test Procedures ": "Test 11.2: Check the \"Horizon\" parameter in the engine for Stage 2 loans. Must be > 12 months.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or relate to any specific information in the provided context. The context contains detailed information about methodologies, responsibilities, and procedures related to credit risk and expected credit loss calculations, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 5, Page 22, Page 5, Page 13"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the responsibilities and procedures related to the estimation of credit losses, the roles of different management teams, and the validation of models, among other things. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 1, Page 4"
     },
     {
         "#": 58.0,
@@ -332,8 +332,8 @@
         "Test Procedures ": "Test 11.3: Check a loan with 40 DPD. Is it Stage 2? If it is Stage 1, is there a valid rebuttal?",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the methodology for classifying operations into different stages based on credit risk, the process for determining expected credit losses, and the responsibilities of various departments in managing these processes. Therefore, the answer does not accurately reflect the content of the context and is considered a hallucination.",
-        "Evidence_Sources": "Page 3, Page 5, Page 13, Page 5, Page 22"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provides detailed information about the responsibilities and procedures related to the estimation of credit losses, including the roles of different management teams and the requirement for independent validation of the model. Therefore, the answer does not faithfully handle the evidence provided in the context.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 1, Page 3"
     },
     {
         "#": 60.0,
@@ -344,8 +344,8 @@
         "Test Procedures ": "Test 11.5: (General) confirm the final booking includes the weighted average of scenarios.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a generic response and does not engage with the specific content of the context provided. The context includes detailed information about methodologies, policies, and procedures related to financial operations and risk management, but the AI answer does not reference or analyze any of this information. Therefore, the answer is irrelevant to the context and does not address the audit query in any meaningful way.",
-        "Evidence_Sources": "Page 3, Page 22, Page 5, Page 13, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer 'Not Documented in provided context.' does not address the audit query or provide any relevant information from the context. The context contains detailed information about the policies and procedures related to the estimation of credit losses, responsibilities of different management roles, and specific methodologies for asset classification and risk management. However, the AI answer fails to reference any of this information or provide a meaningful response to the audit query. Therefore, it is considered a hallucination or irrelevant response.",
+        "Evidence_Sources": "Page 2, Page 4, Page 5, Page 1, Page 4"
     },
     {
         "#": 63.0,
@@ -356,8 +356,8 @@
         "Test Procedures ": "Test 12.1: Review the \"Model Monitoring Package\". Look for PSI (Population Stability Index) charts.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures related to the methodology for calculating expected credit losses, including specific procedures and responsibilities. Therefore, the answer does not faithfully handle the evidence provided in the context.",
-        "Evidence_Sources": "Page 3, Page 5, Page 1, Page 13, Page 5"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures and policies related to risk management and credit loss estimation, including specific responsibilities, methodologies, and criteria for classification and estimation. The answer does not engage with any of this information, making it irrelevant to the context.",
+        "Evidence_Sources": "Page 2, Page 3, Page 4, Page 3, Page 5"
     },
     {
         "#": 65.0,
@@ -368,8 +368,8 @@
         "Test Procedures ": "Test 13.1: Review Policy. Does it set caps/limits on overrides? (e.g., max 5% of portfolio).",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures related to credit risk management, including methodologies for stage classification, contagion, and expected credit loss calculations. The answer does not engage with any of the detailed information available in the context, making it irrelevant to the audit query.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 13, Page 1"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which does not address the audit query or provide any relevant information from the context. The context contains detailed information about policies, procedures, and responsibilities related to risk management and credit loss estimation, but the AI answer fails to reference or utilize any of this information. Therefore, the answer is irrelevant to the context provided.",
+        "Evidence_Sources": "Page 2, Page 3, Page 4, Page 5, Page 3"
     },
     {
         "#": 66.0,
@@ -380,7 +380,7 @@
         "Test Procedures ": "Test 13.2: Select a sample of 5 recent overrides (Post-Model Adjustments). Inspect the \"Credit Committee\" or \"Risk Committee\" minutes to find the specific approval for these adjustments.",
         "AI_Answer": "Not Documented in provided context.",
         "Validation_Score": 0,
-        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is a complete hallucination. The context provided contains extensive documentation on various procedures and methodologies related to credit risk assessment and expected credit loss calculation. The answer does not engage with any of the detailed information available in the context, such as the methodology for 'contagio de stage,' the classification of assets, or the responsibilities of different management roles. Therefore, the answer is irrelevant to the context provided.",
-        "Evidence_Sources": "Page 3, Page 5, Page 5, Page 13, Page 6"
+        "Validation_Reasoning": "The AI Generated Answer states 'Not Documented in provided context,' which is incorrect. The context provided contains detailed information about the procedures and responsibilities related to the estimation of Expected Credit Losses (PCE), including the roles of different management areas and the requirement for independent validation. Therefore, the answer does not faithfully handle the evidence from the context.",
+        "Evidence_Sources": "Page 4, Page 2, Page 1, Page 5, Page 4"
     }
 ]

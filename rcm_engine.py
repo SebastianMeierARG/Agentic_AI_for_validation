@@ -44,8 +44,10 @@ class RcmAuditor:
 
         # c) Call the LLM with a prompt that forces it to answer strictly based on context
         prompt_text = f"""
-You are an expert IFRS9 Auditor. Answer the audit test procedure strictly based *ONLY* on the provided Context.
-If the context does not contain the answer, state "Not Documented in provided context".
+You are an expert IFRS9 Auditor. Answer the audit test procedure based on the provided Context.
+- If the procedure asks for specific facts, extract them from the context.
+- If the procedure asks for an evaluation (e.g., "Is it well explained?", "Is it consistent?"), use your professional judgment to EVALUATE the content of the Context to provide the answer.
+- If the context does not contain relevant information to answer or evaluate, state "Not Documented in provided context".
 You must cite the Page number for every assertion.
 
 Context:
