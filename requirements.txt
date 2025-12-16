@@ -10,3 +10,4 @@ jinja2
 jupyter
 pyyaml
 tiktoken
+openpyxl

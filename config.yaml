@@ -1,6 +1,10 @@
 llm_settings:
   model: "gpt-4o"
-  temperature: 0.1
+  temperature: 0.0
+
+rag_settings:
+  chunk_size: 3000
+  chunk_overlap: 500
 
 paths:
   input_csv: "rcm_input.csv"

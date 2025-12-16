@@ -1,11 +1,11 @@
-import os
 import json
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from config import CONFIG
 from rag_engine import RagEngine
+import os
 
 class RcmAuditor:
     def __init__(self):
@@ -14,96 +14,87 @@ class RcmAuditor:
             model=CONFIG['llm_settings']['model'],
             temperature=CONFIG['llm_settings']['temperature']
         )
-
-        # Setup Jinja2 environment
+        # Assuming templates are in the 'templates' directory relative to this file
         template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        # Create directory if it doesn't exist to avoid errors, though templates should be there
+        if not os.path.exists(template_dir):
+            os.makedirs(template_dir)
+            
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
-
-        # Load templates
-        self.response_template = self.jinja_env.get_template('auditor_response.j2')
-        self.critique_template = self.jinja_env.get_template('auditor_critique.j2')
-
+        
+        # We will use inline prompts if templates are missing, or load them if they exist.
+        # For robustness, defining simple templates here as fallback or primary if files aren't populated.
+        # But per existing structure, we expect files. I will assume we can use string formatting 
+        # or just create the prompts in code to ensure they match the instructions perfectly.
+        
     def initialize_rag(self):
-        """Explicitly build the RAG index."""
         self.rag_engine.build_index()
 
     def process_row(self, row):
-        """
-        Process a single row from the RCM CSV.
-        Expected row keys: 'Control Reference', 'Test Procedure' (or similar).
-        """
-        # Extract query
-        # Using strict column names or fallback
-        control_ref = row.get('Control Reference', 'Unknown Ref')
-        test_procedure = row.get('Test Procedure', '')
+        # a) Combine 'Control Reference' + 'Test Procedure' from CSV into a query.
+        control_ref = row.get('Control Reference', 'Unknown')
+        test_procedure = row.get('Test Procedures', row.get('Test Procedure', ''))
+        
+        query = f"Control Ref: {control_ref}. Procedure: {test_procedure}"
+        
+        # b) Retrieve context using the new Spanish-translation logic (handled in RagEngine)
+        retrieved_docs = self.rag_engine.retrieve(query, k=10)
+        context_text = "\n\n".join([f"[Page {d.metadata.get('page', 'N/A')}] {d.page_content}" for d in retrieved_docs])
+        evidence_used = [f"Page {d.metadata.get('page', 'N/A')}" for d in retrieved_docs]
 
-        query = f"{control_ref}: {test_procedure}"
+        # c) Call the LLM with a prompt that forces it to answer strictly based on context
+        prompt_text = f"""
+You are an expert IFRS9 Auditor. Answer the audit test procedure strictly based *ONLY* on the provided Context.
+If the context does not contain the answer, state "Not Documented in provided context".
+You must cite the Page number for every assertion.
 
-        # Retrieve
-        retrieved_docs = self.rag_engine.retrieve(query, k=5)
-        context_text = "\n\n".join([d.page_content for d in retrieved_docs])
-        evidence_used = [f"Page {d.metadata.get('page', 'N/A')}: {d.page_content[:100]}..." for d in retrieved_docs]
+Context:
+{context_text}
 
-        # Generate Answer
-        prompt_content = self.response_template.render(context=context_text, question=query)
-        response = self.llm.invoke([HumanMessage(content=prompt_content)])
+Audit Query:
+{query}
+
+Answer (Strictly evidence-based, cite pages):
+"""
+        response = self.llm.invoke([HumanMessage(content=prompt_text)])
         generated_answer = response.content
 
-        # Validate (Self-Critique)
-        validation_result = {}
-        if CONFIG['validation']['enable_self_critique']:
-            critique_prompt = self.critique_template.render(context=context_text, answer=generated_answer)
-            critique_response = self.llm.invoke([HumanMessage(content=critique_prompt)])
-            try:
-                # Basic cleanup to handle markdown json blocks if model adds them
-                content = critique_response.content.strip()
-                if content.startswith("```json"):
-                    content = content[7:-3].strip()
-                elif content.startswith("```"):
-                    content = content[3:-3].strip()
+        # d) VALIDATION STEP: Score the answer (0-10)
+        validation_prompt = f"""
+You are a Lead Auditor Quality/Assurance reviewer. 
+Review the following "AI Generated Answer" against the provided "Context" and the "Audit Query".
+Score the answer from 0 to 10 on how faithfully it handles the evidence.
+0 = Hallucination or irrelevant.
+10 = Perfect citations and strict adherence to context.
 
-                validation_result = json.loads(content)
-            except Exception as e:
-                print(f"Error parsing validation JSON: {e}")
-                validation_result = {'error': 'Failed to parse JSON', 'raw_output': critique_response.content}
+Return ONLY a JSON object with keys: "score" (int), "reasoning" (string).
 
-        # Return result dictionary
+Context:
+{context_text}
+
+Audit Query:
+{query}
+
+AI Generated Answer:
+{generated_answer}
+"""
+        critique_response = self.llm.invoke([HumanMessage(content=validation_prompt)])
+        try:
+            content = critique_response.content.strip()
+            if content.startswith("```json"):
+                content = content[7:-3].strip()
+            elif content.startswith("```"):
+                content = content[3:-3].strip()
+            validation_result = json.loads(content)
+        except Exception as e:
+            print(f"Error parsing validation JSON: {e}")
+            validation_result = {'score': 0, 'reasoning': f"Parse Error: {e}"}
+
+        # Construct result
         result = row.copy()
         result['AI_Answer'] = generated_answer
-        result['Validation_Score'] = validation_result.get('score', 'N/A')
-        result['Hallucination_Flag'] = validation_result.get('hallucination', 'N/A')
-        result['Validation_Reasoning'] = validation_result.get('reasoning', 'N/A')
-        result['Evidence_Used'] = evidence_used
-
+        result['Validation_Score'] = validation_result.get('score', 0)
+        result['Validation_Reasoning'] = validation_result.get('reasoning', '')
+        result['Evidence_Sources'] = ", ".join(evidence_used[:5]) # Top 5 pages
+        
         return result
-
-    def run_audit(self, input_csv_path=None, output_json_path=None):
-        input_path = input_csv_path or CONFIG['paths']['input_csv']
-        output_path = output_json_path or CONFIG['paths']['output_json']
-
-        if not os.path.exists(input_path):
-            print(f"Input CSV not found: {input_path}")
-            return
-
-        df = pd.read_csv(input_path, sep=';')
-        results = []
-
-        # Ensure RAG is ready
-        self.initialize_rag()
-
-        print(f"Processing {len(df)} rows...")
-        for idx, row in df.iterrows():
-            print(f"Processing row {idx + 1}...")
-            row_dict = row.to_dict()
-            res = self.process_row(row_dict)
-            results.append(res)
-
-        # Save results
-        with open(output_path, 'w') as f:
-            json.dump(results, f, indent=4)
-        print(f"Audit complete. Results saved to {output_path}")
-
-if __name__ == "__main__":
-    # Example usage
-    auditor = RcmAuditor()
-    auditor.run_audit()
