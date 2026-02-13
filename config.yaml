@@ -1,6 +1,10 @@
 llm_settings:
-  model: "gpt-4o"
+  provider: "openai" # "openai" or "google"
   temperature: 0.0
+  openai:
+    model: "gpt-4o-mini"
+  google:
+    model: "models/gemini-pro-latest"
 
 rag_settings:
   chunk_size: 1500

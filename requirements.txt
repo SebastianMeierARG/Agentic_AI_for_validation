@@ -11,3 +11,5 @@ jupyter
 pyyaml
 tiktoken
 openpyxl
+langchain-google-genai
+google-generativeai

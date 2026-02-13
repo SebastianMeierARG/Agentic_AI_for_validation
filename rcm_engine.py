@@ -1,19 +1,16 @@
 import json
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
 from config import CONFIG
 from rag_engine import RagEngine
+from llm_factory import get_llm
+from langchain_core.messages import HumanMessage
 import os
 
 class RcmAuditor:
     def __init__(self):
         self.rag_engine = RagEngine()
-        self.llm = ChatOpenAI(
-            model=CONFIG['llm_settings']['model'],
-            temperature=CONFIG['llm_settings']['temperature']
-        )
+        self.llm = get_llm()
         # Assuming templates are in the 'templates' directory relative to this file
         template_dir = os.path.join(os.path.dirname(__file__), 'templates')
         # Create directory if it doesn't exist to avoid errors, though templates should be there
@@ -31,11 +28,14 @@ class RcmAuditor:
         self.rag_engine.build_index()
 
     def process_row(self, row):
-        # a) Combine 'Control Reference' + 'Test Procedure' from CSV into a query.
+        # a) Combine 'Control Reference' + 'Design Effectiveness Assessment' (+ optional Test Procedure) from CSV into a query.
         control_ref = row.get('Control Reference', 'Unknown')
+        # KEY FIX: Use the question/assessment intent, not just the test steps.
+        design_assessment = row.get('Design Effectiveness Assessment', '')
         test_procedure = row.get('Test Procedures', row.get('Test Procedure', ''))
         
-        query = f"Control Ref: {control_ref}. Procedure: {test_procedure}"
+        # Construct a richer query
+        query = f"Control Ref: {control_ref}. Question: {design_assessment} (Procedure: {test_procedure})"
         
         # b) Retrieve context using the new Spanish-translation logic (handled in RagEngine)
         retrieved_docs = self.rag_engine.retrieve(query, k=10)
@@ -58,7 +58,28 @@ Audit Query:
 
 Answer (Strictly evidence-based, cite pages):
 """
-        response = self.llm.invoke([HumanMessage(content=prompt_text)])
+        # Retry logic for generation
+        import time
+        from google.api_core.exceptions import ResourceExhausted
+
+        max_retries = 5
+        base_delay = 20 # Start with 20 seconds as requested
+
+        for attempt in range(max_retries):
+            try:
+                response = self.llm.invoke([HumanMessage(content=prompt_text)])
+                break
+            except Exception as e:
+                # Check for ResourceExhausted or similar 429
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    if attempt < max_retries - 1:
+                        wait_time = base_delay * (2 ** attempt) # Exponential backoff: 20, 40, 80...
+                        print(f"Rate limit hit. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                    else:
+                        raise e # Re-raise if retries exhausted
+                else:
+                    raise e # Re-raise other errors immediately
         generated_answer = response.content
 
         # d) VALIDATION STEP: Score the answer (0-10)
@@ -80,17 +101,38 @@ Audit Query:
 AI Generated Answer:
 {generated_answer}
 """
-        critique_response = self.llm.invoke([HumanMessage(content=validation_prompt)])
-        try:
-            content = critique_response.content.strip()
-            if content.startswith("```json"):
-                content = content[7:-3].strip()
-            elif content.startswith("```"):
-                content = content[3:-3].strip()
-            validation_result = json.loads(content)
-        except Exception as e:
-            print(f"Error parsing validation JSON: {e}")
-            validation_result = {'score': 0, 'reasoning': f"Parse Error: {e}"}
+        critique_response = None
+        for attempt in range(max_retries):
+            try:
+                critique_response = self.llm.invoke([HumanMessage(content=validation_prompt)])
+                break
+            except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    if attempt < max_retries - 1:
+                        wait_time = base_delay * (2 ** attempt)
+                        print(f"Rate limit hit during critique. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"Critique failed after retries: {e}")
+                        validation_result = {'score': 0, 'reasoning': f"Rate Limit Error: {e}"}
+                        # Skip parsing and return failure result
+                        break
+                else:
+                    print(f"Critique failed with non-rate-limit error: {e}")
+                    validation_result = {'score': 0, 'reasoning': f"Error: {e}"}
+                    break
+
+        if critique_response:
+            try:
+                content = critique_response.content.strip()
+                if content.startswith("```json"):
+                    content = content[7:-3].strip()
+                elif content.startswith("```"):
+                    content = content[3:-3].strip()
+                validation_result = json.loads(content)
+            except Exception as e:
+                print(f"Error parsing validation JSON: {e}")
+                validation_result = {'score': 0, 'reasoning': f"Parse Error: {e}"}
 
         # Construct result
         result = row.copy()

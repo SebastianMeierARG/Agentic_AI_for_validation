@@ -5,6 +5,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage, SystemMessage
 from config import CONFIG
+from llm_factory import get_llm, get_embeddings
 import shutil
 
 class RagEngine:
@@ -16,15 +17,12 @@ class RagEngine:
         self.doc_language = CONFIG['rag_settings'].get('document_language', 'English')
 
         # Initialize LLM for translation/HyDE
-        self.llm = ChatOpenAI(
-            model=CONFIG['llm_settings']['model'],
-            temperature=CONFIG['llm_settings']['temperature']
-        )
+        self.llm = get_llm()
         
         try:
-            self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+            self.embeddings = get_embeddings()
         except Exception as e:
-            print(f"Warning: Could not initialize OpenAIEmbeddings: {e}")
+            print(f"Warning: Could not initialize Embeddings: {e}")
             self.embeddings = None
 
     def load_documents(self):
@@ -64,7 +62,28 @@ class RagEngine:
 
         if splits:
             print(f"Creating vector store with {len(splits)} chunks (Size: {chunk_size}, Overlap: {chunk_overlap})...")
-            self.vector_store = FAISS.from_documents(splits, self.embeddings)
+            
+            import time
+            from langchain_core.documents import Document
+
+            batch_size = 10  # Process 10 chunks at a time to avoid rate limits
+            delay_seconds = 5 # Wait 5 seconds between batches
+
+            self.vector_store = None
+            
+            total_batches = (len(splits) + batch_size - 1) // batch_size
+            for i in range(0, len(splits), batch_size):
+                batch = splits[i : i + batch_size]
+                print(f"Processing batch {i//batch_size + 1}/{total_batches} ({len(batch)} chunks)...")
+                
+                if self.vector_store is None:
+                    self.vector_store = FAISS.from_documents(batch, self.embeddings)
+                else:
+                    self.vector_store.add_documents(batch)
+                
+                if i + batch_size < len(splits):
+                    time.sleep(delay_seconds)
+
             print("Index built successfully.")
         else:
             print("No text chunks created.")
@@ -80,7 +99,30 @@ class RagEngine:
             SystemMessage(content="You are a helpful assistant."),
             HumanMessage(content=system_prompt)
         ]
-        response = self.llm.invoke(messages)
+        response = None
+        # Retry logic for generation
+        import time
+        from google.api_core.exceptions import ResourceExhausted
+
+        max_retries = 5
+        base_delay = 20 
+
+        for attempt in range(max_retries):
+            try:
+                response = self.llm.invoke(messages)
+                break
+            except Exception as e:
+                # Check for ResourceExhausted or similar 429
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    if attempt < max_retries - 1:
+                        wait_time = base_delay * (2 ** attempt) 
+                        print(f"Rate limit hit during HyDE. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                    else:
+                        raise e 
+                else:
+                    raise e
+        
         return response.content
 
     def retrieve(self, query, k=10):
