@@ -42,22 +42,10 @@ class RcmAuditor:
         context_text = "\n\n".join([f"[Page {d.metadata.get('page', 'N/A')}] {d.page_content}" for d in retrieved_docs])
         evidence_used = [f"Page {d.metadata.get('page', 'N/A')}" for d in retrieved_docs]
 
-        # c) Call the LLM with a prompt that forces it to answer strictly based on context
-        prompt_text = f"""
-You are an expert IFRS9 Auditor. Answer the audit test procedure based on the provided Context.
-- If the procedure asks for specific facts, extract them from the context.
-- If the procedure asks for an evaluation (e.g., "Is it well explained?", "Is it consistent?"), use your professional judgment to EVALUATE the content of the Context to provide the answer.
-- If the context does not contain relevant information to answer or evaluate, state "Not Documented in provided context".
-You must cite the Page number for every assertion.
+        # c) Call the LLM with a prompt from the template
+        template = self.jinja_env.get_template('auditor_response.j2')
+        prompt_text = template.render(context=context_text, query=query)
 
-Context:
-{context_text}
-
-Audit Query:
-{query}
-
-Answer (Strictly evidence-based, cite pages):
-"""
         # Retry logic for generation
         import time
         from google.api_core.exceptions import ResourceExhausted
@@ -83,24 +71,9 @@ Answer (Strictly evidence-based, cite pages):
         generated_answer = response.content
 
         # d) VALIDATION STEP: Score the answer (0-10)
-        validation_prompt = f"""
-You are a Lead Auditor Quality/Assurance reviewer. 
-Review the following "AI Generated Answer" against the provided "Context" and the "Audit Query".
-Score the answer from 0 to 10 on how faithfully it handles the evidence.
-0 = Hallucination or irrelevant.
-10 = Perfect citations and strict adherence to context.
+        critique_template = self.jinja_env.get_template('auditor_critique.j2')
+        validation_prompt = critique_template.render(context=context_text, query=query, answer=generated_answer)
 
-Return ONLY a JSON object with keys: "score" (int), "reasoning" (string).
-
-Context:
-{context_text}
-
-Audit Query:
-{query}
-
-AI Generated Answer:
-{generated_answer}
-"""
         critique_response = None
         for attempt in range(max_retries):
             try:

@@ -41,6 +41,10 @@ def main():
             err_row = row.to_dict()
             err_row['AI_Answer'] = f"Error: {e}"
             results.append(err_row)
+            
+        # Polite delay between rows to avoid hitting rate limits
+        import time
+        time.sleep(1)
 
     # Save Results
     output_json = CONFIG['paths']['output_json']
