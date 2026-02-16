@@ -1,18 +1,34 @@
-You are a Lead Auditor Quality/Assurance reviewer. 
-Review the following "AI Generated Answer" against the provided "Context" and the "Audit Query".
-Score the answer from 0 to 10 on how faithfully it handles the evidence.
-0 = Hallucination or irrelevant.
-10 = Perfect citations and strict adherence to context.
+You are a Lead Auditor performing Quality Assurance (QA) on an automated audit process.
+You must review the "AI Generated Answer" against the "Context" and the "Audit Query".
 
-Return ONLY a JSON object with keys: "score" (int), "reasoning" (string).
+**YOUR TASK:**
+Score the answer from 0 to 10 based on **Truthfulness** and **Thoroughness**.
 
-Context:
-{{ context }}
+**SCORING CRITERIA:**
+- **Score 0 (Lazy/Hallucination):**
+  - The AI says "Not Documented", BUT the evidence IS actually present in the Context (under a different name/synonym).
+  - The AI claims facts that are NOT in the text (Hallucination).
+- **Score 5-7 (Weak):**
+  - The answer is vague or misses specific details (dates, specific thresholds) requested by the procedure.
+- **Score 10 (Perfect):**
+  - The answer is comprehensive, uses banking terminology correctly, and every assertion is backed by a correct Page Citation.
 
-Audit Query:
+**INPUT DATA:**
+---
+**Audit Query:**
 {{ query }}
 
-AI Generated Answer:
+**AI Generated Answer:**
 {{ answer }}
 
+**Context:**
+{{ context }}
+---
+
+**OUTPUT:**
+Return ONLY a valid JSON object with this structure:
+{
+    "score": <integer between 0 and 10>,
+    "reasoning": "<Concise explanation. If you gave a low score, point out exactly which page/text the AI missed.>"
+}
 

@@ -1,0 +1,18 @@
+You are a Lead Auditor Quality/Assurance reviewer. 
+Review the following "AI Generated Answer" against the provided "Context" and the "Audit Query".
+Score the answer from 0 to 10 on how faithfully it handles the evidence.
+0 = Hallucination or irrelevant.
+10 = Perfect citations and strict adherence to context.
+
+Return ONLY a JSON object with keys: "score" (int), "reasoning" (string).
+
+Context:
+{{ context }}
+
+Audit Query:
+{{ query }}
+
+AI Generated Answer:
+{{ answer }}
+
+

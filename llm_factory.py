@@ -22,7 +22,10 @@ def get_llm(override_config=None):
     
     else: # Default to openai
         model_name = settings.get('openai', {}).get('model', 'gpt-4o-mini')
-        return ChatOpenAI(model=model_name, temperature=temperature)
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            api_key = api_key.strip()
+        return ChatOpenAI(model=model_name, temperature=temperature, openai_api_key=api_key)
 
 def get_embeddings(override_config=None):
     """
