@@ -29,8 +29,8 @@ def validate_audit():
         print("Error: 'Control Reference' column missing in AI results.", flush=True)
         return
 
-    # 2. Load Expert Answers
-    expert_csv = r'c:\Users\semeier\Desktop\gemini_chat_private_GH\Agentic_AI_for_validation\rcm_expert_answer.csv'
+    # 3. Load Expert Answers
+    expert_csv = r'inputs\rcm_expert_answer.csv'
     if not os.path.exists(expert_csv):
         print(f"Error: {expert_csv} not found.", flush=True)
         return
@@ -77,7 +77,7 @@ def validate_audit():
     merged_df['Comparison_Score'] = 0
     merged_df['Comparison_Reasoning'] = ""
     
-    output_path = r'c:\Users\semeier\Desktop\gemini_chat_private_GH\Agentic_AI_for_validation\validation_comparison_report.csv'
+    output_path = r'outputs\validation_comparison_report.csv'
 
     
     for idx, row in merged_df.iterrows():

@@ -1,31 +1,60 @@
 import json
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
-from config import CONFIG
+from config import CONFIG, PROJECT_ROOT
 from rag_engine import RagEngine
 from llm_factory import get_llm
 from langchain_core.messages import HumanMessage
 import os
+import time
 
 class RcmAuditor:
     def __init__(self):
         self.rag_engine = RagEngine()
         self.llm = get_llm()
-        # Assuming templates are in the 'templates' directory relative to this file
-        template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        # Templates are in the project root 'templates' folder
+        template_dir = os.path.join(PROJECT_ROOT, 'templates')
         # Create directory if it doesn't exist to avoid errors, though templates should be there
         if not os.path.exists(template_dir):
-            os.makedirs(template_dir)
+            print(f"Warning: Template directory not found at {template_dir}")
+            # Fallback to local if running from root without package structure? 
+            # But PROJECT_ROOT should be correct.
             
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         
-        # We will use inline prompts if templates are missing, or load them if they exist.
-        # For robustness, defining simple templates here as fallback or primary if files aren't populated.
-        # But per existing structure, we expect files. I will assume we can use string formatting 
-        # or just create the prompts in code to ensure they match the instructions perfectly.
-        
     def initialize_rag(self):
         self.rag_engine.build_index()
+
+    def generate_client_summary(self):
+        output_file = "outputs/client_summary.txt"
+        if os.path.exists(output_file):
+            print(f"Client summary already exists at {output_file}")
+            return
+            
+        print("Generating Client Summary...")
+        # Retrieve context from client docs acting as a broad query
+        query = "Summarize the Provisioning Policy and key credit risk methodologies."
+        # Ensure we are querying the client index specifically if needed, but retrieve handles defaults
+        docs = self.rag_engine.retrieve(query, k=10) 
+        
+        context_text = "\n\n".join([d.page_content for d in docs])
+        
+        prompt = (
+            f"You are an expert Auditor. Summarize the following client policy documents representing their "
+            f"Provisioning and Credit Risk methodology.\n\n"
+            f"Context:\n{context_text}\n\n"
+            f"Output a professional executive summary."
+        )
+        
+        try:
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            summary = response.content
+            
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(summary)
+            print(f"Client summary saved to {output_file}")
+        except Exception as e:
+            print(f"Error generating client summary: {e}")
 
     def process_row(self, row):
         # a) Combine 'Control Reference' + 'Design Effectiveness Assessment' (+ optional Test Procedure) from CSV into a query.
@@ -47,7 +76,6 @@ class RcmAuditor:
         prompt_text = template.render(context=context_text, query=query)
 
         # Retry logic for generation
-        import time
         from google.api_core.exceptions import ResourceExhausted
 
         max_retries = 5
@@ -68,7 +96,31 @@ class RcmAuditor:
                         raise e # Re-raise if retries exhausted
                 else:
                     raise e # Re-raise other errors immediately
-        generated_answer = response.content
+        
+        full_response = response.content
+        
+        # Parse Verdict
+        compliance_verdict = "Insufficient Info"
+        if "**COMPLIANCE VERDICT:**" in full_response:
+            parts = full_response.split("**COMPLIANCE VERDICT:**")
+            generated_answer = parts[0].strip()
+            # Clean up verdict
+            verdict_lines = parts[1].strip().split('\n')
+            for line in verdict_lines:
+                clean_line = line.strip().lower()
+                if "compliant" in clean_line or "non-compliant" in clean_line or "partial" in clean_line or "insufficient" in clean_line:
+                     # Simple extraction
+                    if "non-compliant" in clean_line:
+                        compliance_verdict = "Non-Compliant"
+                    elif "compliant" in clean_line:
+                        compliance_verdict = "Compliant"
+                    elif "partial" in clean_line:
+                        compliance_verdict = "Partial"
+                    elif "insufficient" in clean_line:
+                        compliance_verdict = "Insufficient Info"
+                    break
+        else:
+            generated_answer = full_response
 
         # d) VALIDATION STEP: Score the answer (0-10)
         critique_template = self.jinja_env.get_template('auditor_critique.j2')
@@ -112,6 +164,7 @@ class RcmAuditor:
         result['AI_Answer'] = generated_answer
         result['Validation_Score'] = validation_result.get('score', 0)
         result['Validation_Reasoning'] = validation_result.get('reasoning', '')
+        result['Compliance_Verdict'] = compliance_verdict
         result['Evidence_Sources'] = ", ".join(evidence_used[:5]) # Top 5 pages
         
         return result

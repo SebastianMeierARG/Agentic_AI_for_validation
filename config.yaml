@@ -12,8 +12,8 @@ rag_settings:
   document_language: "Spanish"
 
 paths:
-  input_csv: "rcm_input.csv"
-  output_json: "audit_results.json"
+  input_csv: "inputs/rcm_input.csv"
+  output_json: "outputs/audit_results.json"
   documents_folder: "documents/"
 
 validation:
