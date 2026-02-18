@@ -9,7 +9,7 @@ llm_settings:
 rag_settings:
   chunk_size: 1500
   chunk_overlap: 300
-  document_language: "Spanish"
+  document_language: "Spanish" # "Spanish" or "English"
 
 paths:
   input_csv: "inputs/rcm_input.csv"

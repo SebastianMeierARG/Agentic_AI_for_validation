@@ -2,6 +2,8 @@
 
 This tool automates the auditing process by analyzing design effectiveness assessments against provided documentation using RAG (Retrieval-Augmented Generation).
 
+https://mermaid.ai/app/projects/d845e351-9519-438c-8681-d427564ff745/diagrams/6a1d2297-eb75-4b90-a3cb-4695b9af63eb/version/v0.1/edit
+
 ## Features
 - **Persistent Vector Store**: Eficiently loads/saves document embeddings.
 - **Dual-Memory RAG**: Queries both Client Documents and Regulations (if available).
