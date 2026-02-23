@@ -3,9 +3,10 @@ import json
 import os
 import time
 from config import CONFIG
-from llm_factory import get_llm
-from langchain_core.messages import HumanMessage
-import copy
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from deep_translator import GoogleTranslator
+import re
 
 def validate_audit():
     print("Starting Validation Process...", flush=True)
@@ -29,8 +30,8 @@ def validate_audit():
         print("Error: 'Control Reference' column missing in AI results.", flush=True)
         return
 
-    # 3. Load Expert Answers
-    expert_csv = r'inputs\rcm_expert_answer.csv'
+    # 2. Load Expert Answers
+    expert_csv = CONFIG['paths']['expert_answers_csv']
     if not os.path.exists(expert_csv):
         print(f"Error: {expert_csv} not found.", flush=True)
         return
@@ -60,24 +61,31 @@ def validate_audit():
     
     print(f"Merged {len(merged_df)} rows (Intersection of AI and Expert data).", flush=True)
 
-    # 4. LLM Comparison
-    override_config = copy.deepcopy(CONFIG)
-    override_config['llm_settings']['provider'] = 'google'
-    override_config['llm_settings']['google'] = {'model': 'models/gemini-2.0-flash-001'}
-    
+    print("Loading Sentence Transformer model (this may take a moment)...", flush=True)
     try:
-        llm = get_llm(override_config)
+        model = SentenceTransformer('all-MiniLM-L6-v2')
     except Exception as e:
-        print(f"Error initializing LLM: {e}", flush=True)
+        print(f"Error initializing SentenceTransformer: {e}", flush=True)
         return
+
+    print("Initializing Google Translator...", flush=True)
+    translator = GoogleTranslator(source='auto', target='en')
+
+    print("Calculating similarity metrics...", flush=True)
     
-    print("Running LLM comparison on rows...", flush=True)
+    # Initialize metrics columns
+    merged_df['Semantic_Score'] = 0.0
+    merged_df['Lexical_Score'] = 0.0
+    merged_df['Comparison_Score'] = 0.0
+
+    def jaccard_similarity(str1, str2):
+        set1 = set(re.findall(r'\w+', str1.lower()))
+        set2 = set(re.findall(r'\w+', str2.lower()))
+        if not set1 or not set2:
+            return 0.0
+        return float(len(set1.intersection(set2)) / len(set1.union(set2)))
     
-    # Create empty column in dataframe if not exists
-    merged_df['Comparison_Score'] = 0
-    merged_df['Comparison_Reasoning'] = ""
-    
-    output_path = r'outputs\validation_comparison_report.csv'
+    output_path = CONFIG['paths']['validation_report_csv']
 
     
     for idx, row in merged_df.iterrows():
@@ -85,61 +93,35 @@ def validate_audit():
         ai_ans = row.get('AI_Answer', 'N/A')
         expert_ans = row.get('Answers based on Clients data', 'N/A')
         
-        prompt = f"""
-You are an expert Audit Supervisor. Compare the "AI Answer" with the "Expert Ground Truth".
-
-Question: {question}
-
-Expert Ground Truth:
-{expert_ans}
-
-AI Answer:
-{ai_ans}
-
-Task:
-1. Rate the semantic similarity and factual accuracy of the AI Answer compared to the Expert Answer on a scale of 0 to 100.
-2. Provide a brief reasoning (1 sentence).
-
-Output strictly in JSON format: {{"score": <int>, "reasoning": "<string>"}}
-"""
-        # Retry logic for rate limits
-        max_retries = 3
+        # Translate to unified English
+        try:
+            ai_ans_en = translator.translate(ai_ans)
+            expert_ans_en = translator.translate(expert_ans)
+        except Exception as e:
+            print(f"Translation Error row {idx}: {e}", flush=True)
+            ai_ans_en, expert_ans_en = ai_ans, expert_ans # Fallback to original
         
-        score = 0
-        reasoning = "Error or Rate Limit"
+        # 1. Semantic Similarity (Cosine)
+        try:
+            embeddings = model.encode([ai_ans_en, expert_ans_en])
+            cosine_sim = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
+            # Map [-1, 1] to [0, 100]
+            semantic_score = float((cosine_sim + 1) / 2 * 100)
+        except Exception as e:
+            print(f"Error calculating semantic similarity for row {idx}: {e}")
+            semantic_score = 0.0
         
-        for attempt in range(max_retries):
-            try:
-                # Add timeout to avoid hanging?
-                # print(f"Invoking row {idx} attempt {attempt}...", flush=True)
-                response = llm.invoke([HumanMessage(content=prompt)])
-                # print(f"Response received row {idx}", flush=True)
-                
-                content = response.content
-                if isinstance(content, list):
-                    content = " ".join([str(item) for item in content])
-                
-                content = str(content).strip()
-                if content.startswith("```json"):
-                    content = content[7:-3]
-                elif content.startswith("```"):
-                    content = content[3:-3]
-                
-                data = json.loads(content)
-                score = data.get('score', 0)
-                reasoning = data.get('reasoning', '')
-                break
-            except Exception as e:
-                # print(f"Exception row {idx}: {e}", flush=True)
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    time.sleep(2 * (attempt + 1))
-                else:
-                    reasoning = f"Error: {e}"
-                    print(f"Error on row {idx}: {e}", flush=True)
-                    break
+        # 2. Lexical Similarity (Jaccard)
+        jaccard_sim = jaccard_similarity(ai_ans_en, expert_ans_en)
+        lexical_score = jaccard_sim * 100
         
-        merged_df.at[idx, 'Comparison_Score'] = score
-        merged_df.at[idx, 'Comparison_Reasoning'] = reasoning
+        # 3. Final Weighted Score
+        # We weigh the semantic meaning highly (80%) but require some factual/term overlap (20%).
+        final_score = (semantic_score * 0.8) + (lexical_score * 0.2)
+        
+        merged_df.at[idx, 'Semantic_Score'] = semantic_score
+        merged_df.at[idx, 'Lexical_Score'] = lexical_score
+        merged_df.at[idx, 'Comparison_Score'] = final_score
         
         if (idx + 1) % 5 == 0:
             print(f"Processed {idx + 1}/{len(merged_df)}...", flush=True)

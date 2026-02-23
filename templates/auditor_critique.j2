@@ -30,6 +30,9 @@ Score the answer from 0 to 10 based on **Truthfulness** and **Thoroughness**.
 **OUTPUT:**
 Return ONLY a valid JSON object with this structure:
 {
+    "hallucination_rate": <float between 0.0 and 1.0>,
+    "hallucination_count": <integer>,
+    "total_claims": <integer>,
     "score": <integer between 0 and 10>,
     "reasoning": "<Concise explanation. If you gave a low score, point out exactly which page/text the AI missed.>"
 }

@@ -10,6 +10,14 @@ https://mermaid.ai/app/projects/d845e351-9519-438c-8681-d427564ff745/diagrams/6a
 - **Compliance Verdict**: Automatically classifies findings (Compliant, Non-Compliant, etc.).
 - **Client Summary**: Generates high-level summaries of client policies.
 
+## High-Level Flow
+At its core, the tool operates as a **Retrieval-Augmented Generation (RAG)** pipeline designed to automate compliance auditing (specifically for IFRS 9). The flow works like this:
+1. **Ingest Documents:** It reads the regulatory policies and methodology documents you provide (`documents/`).
+2. **Read Audit Questions:** It reads a list of audit controls and questions from an input CSV (`inputs/rcm_input.csv`).
+3. **Retrieve Context:** For every question, the `rag_engine.py` searches the ingested documents for the most relevant paragraphs using semantic search.
+4. **Generate Answer:** It sends the context and the question to an AI model using a strict prompt template (`templates/auditor_response.j2`) that forces it to verify facts before answering.
+5. **Validate:** Optionally, `validate_audit.py` mathematically compares the AI's answers against a human expert's answers (`inputs/rcm_expert_answer.csv`) using NLP metrics (Cosine and Jaccard) to score the AI's accuracy.
+
 ## Setup
 
 1.  **Install Dependencies**:
@@ -54,7 +62,7 @@ python -c "import sys; sys.path.append('src'); from rcm_engine import RcmAuditor
 Output will be saved to `outputs/client_summary.txt`.
 
 ### 5. Validate Results (Expert Comparison)
-To compare AI answers against expert ground truth:
+To programmatically compare AI answers against expert ground truth using deterministic NLP metrics (Semantic Cosine Similarity via `sentence-transformers` and Factual Jaccard Overlap):
 ```bash
 python src/validate_audit.py
 ```

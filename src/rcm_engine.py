@@ -26,27 +26,28 @@ class RcmAuditor:
         self.rag_engine.build_index()
 
     def generate_client_summary(self):
-        output_file = "outputs/client_summary.txt"
+        output_file = "outputs/client_summary.md"
         if os.path.exists(output_file):
             print(f"Client summary already exists at {output_file}")
             return
             
         print("Generating Client Summary...")
-        # Retrieve context from client docs acting as a broad query
-        query = "Summarize the Provisioning Policy and key credit risk methodologies."
-        # Ensure we are querying the client index specifically if needed, but retrieve handles defaults
-        docs = self.rag_engine.retrieve(query, k=10) 
+        # Broad query covering all 13 required topics to maximize retrieval relevance
+        query = (
+            "Summarize the client's policy on: Model Governance, Data Quality, Segmentation, "
+            "Definition of Default, Risk Contagion, PD, LGD, EAD/CCF, Macro Scenarios, "
+            "Forward-Looking Information, ECL Calculation, Model Monitoring, and Model Overrides."
+        )
+        
+        # Retrieve context (k=15 to ensure we get enough breadth for all topics)
+        docs = self.rag_engine.retrieve(query, k=15) 
         
         context_text = "\n\n".join([d.page_content for d in docs])
         
-        prompt = (
-            f"You are an expert Auditor. Summarize the following client policy documents representing their "
-            f"Provisioning and Credit Risk methodology.\n\n"
-            f"Context:\n{context_text}\n\n"
-            f"Output a professional executive summary."
-        )
-        
         try:
+            template = self.jinja_env.get_template('client_summary.j2')
+            prompt = template.render(context=context_text)
+            
             response = self.llm.invoke([HumanMessage(content=prompt)])
             summary = response.content
             
@@ -99,11 +100,20 @@ class RcmAuditor:
         
         full_response = response.content
         
+        # Extract Verification Step and Answer using regex
+        import re
+        verification_match = re.search(r'<verification_step>(.*?)(?:</verification_step>|<answer>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
+        verification_step = verification_match.group(1).strip() if verification_match else ""
+        
+        answer_match = re.search(r'<answer>(.*?)(?:</answer>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
+        final_answer = answer_match.group(1).strip() if answer_match else ""
+        
         # Parse Verdict
         compliance_verdict = "Insufficient Info"
         if "**COMPLIANCE VERDICT:**" in full_response:
             parts = full_response.split("**COMPLIANCE VERDICT:**")
-            generated_answer = parts[0].strip()
+            if not final_answer: # Fallback if tags were missing
+                final_answer = parts[0].strip()
             # Clean up verdict
             verdict_lines = parts[1].strip().split('\n')
             for line in verdict_lines:
@@ -120,11 +130,12 @@ class RcmAuditor:
                         compliance_verdict = "Insufficient Info"
                     break
         else:
-            generated_answer = full_response
+            if not final_answer:
+                final_answer = full_response
 
         # d) VALIDATION STEP: Score the answer (0-10)
         critique_template = self.jinja_env.get_template('auditor_critique.j2')
-        validation_prompt = critique_template.render(context=context_text, query=query, answer=generated_answer)
+        validation_prompt = critique_template.render(context=context_text, query=query, answer=final_answer)
 
         critique_response = None
         for attempt in range(max_retries):
@@ -161,7 +172,8 @@ class RcmAuditor:
 
         # Construct result
         result = row.copy()
-        result['AI_Answer'] = generated_answer
+        result['Verification_Step'] = verification_step
+        result['AI_Answer'] = final_answer
         result['Validation_Score'] = validation_result.get('score', 0)
         result['Validation_Reasoning'] = validation_result.get('reasoning', '')
         result['Compliance_Verdict'] = compliance_verdict

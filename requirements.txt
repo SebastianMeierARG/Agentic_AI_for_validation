@@ -13,3 +13,6 @@ tiktoken
 openpyxl
 langchain-google-genai
 google-generativeai
+sentence-transformers
+scikit-learn
+deep-translator

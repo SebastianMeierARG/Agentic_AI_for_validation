@@ -20,7 +20,15 @@ def main():
 
     print(f"Reading input from {input_csv}...")
     try:
-        df = pd.read_csv(input_csv, sep=';') # Keeping the semicolon fix
+        # Try utf-8 first
+        df = pd.read_csv(input_csv, sep=';', encoding='utf-8')
+    except UnicodeDecodeError:
+        print("UTF-8 decoding failed. Attempting with fallback encoding (windows-1252)...")
+        try:
+            df = pd.read_csv(input_csv, sep=';', encoding='windows-1252')
+        except Exception as e:
+            print(f"Error reading CSV with fallback encoding: {e}")
+            return
     except Exception as e:
         print(f"Error reading CSV: {e}")
         return
