@@ -20,3 +20,6 @@ paths:
 
 validation:
   enable_self_critique: true
+
+filtering:
+  tier: '1' # Can be 'all', or a specific tier like 1, 2, or 3

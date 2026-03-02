@@ -54,8 +54,22 @@ def validate_audit():
     # 3. Merge DataFrames
     print("Merging data...", flush=True)
     # Select relevant columns from expert to avoid clutter
-    cols_to_keep = ['Control Reference', 'Answers based on Clients data']
-    df_expert_clean = df_expert[cols_to_keep].dropna(subset=['Answers based on Clients data'])
+    cols_to_keep = ['Control Reference', 'Answers based on Clients data', 'Tier (1/2/3)']
+    
+    # Try to keep Tier column if it exists for filtering
+    existing_cols = [c for c in cols_to_keep if c in df_expert.columns]
+    df_expert_clean = df_expert[existing_cols].dropna(subset=['Answers based on Clients data'])
+    
+    # Apply Tier filtering if Tier is present
+    target_tier = str(CONFIG.get('filtering', {}).get('tier', 'all')).strip().lower()
+    if target_tier != 'all':
+        if 'Tier (1/2/3)' in df_expert_clean.columns:
+            df_expert_clean['Tier (1/2/3)'] = df_expert_clean['Tier (1/2/3)'].astype(str).str.strip().str.lower()
+            df_expert_clean = df_expert_clean[df_expert_clean['Tier (1/2/3)'] == target_tier]
+            print(f"Filtered Expert Data for Tier: {target_tier}. Remaining rows: len(df_expert_clean)", flush=True)
+        else:
+            print("Warning: 'Tier (1/2/3)' column not found in expert data. Skipping filtering.", flush=True)
+
 
     merged_df = pd.merge(df_ai, df_expert_clean, on='Control Reference', how='inner')
     

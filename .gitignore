@@ -3,3 +3,10 @@ __pycache__/
 .env
 .env.example
 .venv
+documents/
+regulations/
+inputs/
+outputs/
+faiss_index_client/
+faiss_index_server/
+.csv

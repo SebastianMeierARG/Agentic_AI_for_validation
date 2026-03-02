@@ -69,8 +69,49 @@ class RcmAuditor:
         
         # b) Retrieve context using the new Spanish-translation logic (handled in RagEngine)
         retrieved_docs = self.rag_engine.retrieve(query, k=10)
-        context_text = "\n\n".join([f"[Page {d.metadata.get('page', 'N/A')}] {d.page_content}" for d in retrieved_docs])
-        evidence_used = [f"Page {d.metadata.get('page', 'N/A')}" for d in retrieved_docs]
+        
+        context_parts = []
+        evidence_dict = {} # Keep track of pages per file
+        
+        for d in retrieved_docs:
+            page = d.metadata.get('page', 'N/A')
+            source_path = d.metadata.get('source', '')
+            filename = os.path.basename(source_path) if source_path else 'Unknown_Document'
+            
+            # Context string for LLM
+            context_parts.append(f"[Page {page} of '{filename}'] {d.page_content}")
+            
+            # Collect for Evidence Sources
+            if filename not in evidence_dict:
+                evidence_dict[filename] = set()
+            if page != 'N/A':
+                # Sometimes page is returned as zero-indexed integer, let's just make it string
+                evidence_dict[filename].add(str(page))
+                
+        context_text = "\n\n".join(context_parts)
+        
+        # Build Evidence Sources String
+        evidence_sources_list = []
+        for fname, pages in evidence_dict.items():
+            if not pages:
+                evidence_sources_list.append(f"'{fname}'")
+            else:
+                # Sort pages numerically where possible
+                try:
+                    sorted_pages = sorted(list(pages), key=int)
+                except ValueError:
+                    sorted_pages = sorted(list(pages)) # Fallback string sort if non-int pages exist
+                
+                if len(sorted_pages) == 1:
+                    evidence_sources_list.append(f"Page {sorted_pages[0]} of '{fname}'")
+                elif len(sorted_pages) == 2:
+                    evidence_sources_list.append(f"Pages {sorted_pages[0]} and {sorted_pages[1]} of '{fname}'")
+                else:
+                    pages_str = ", ".join(sorted_pages[:-1]) + f" and {sorted_pages[-1]}"
+                    evidence_sources_list.append(f"Pages {pages_str} of '{fname}'")
+                    
+        evidence_sources_str = "; ".join(evidence_sources_list)
+
 
         # c) Call the LLM with a prompt from the template
         template = self.jinja_env.get_template('auditor_response.j2')
@@ -100,13 +141,13 @@ class RcmAuditor:
         
         full_response = response.content
         
-        # Extract Verification Step and Answer using regex
+        # Extract Answer and Evidence Sources using regex
         import re
-        verification_match = re.search(r'<verification_step>(.*?)(?:</verification_step>|<answer>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
-        verification_step = verification_match.group(1).strip() if verification_match else ""
-        
-        answer_match = re.search(r'<answer>(.*?)(?:</answer>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
+        answer_match = re.search(r'<answer>(.*?)(?:</answer>|<evidence_sources>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
         final_answer = answer_match.group(1).strip() if answer_match else ""
+        
+        evidence_match = re.search(r'<evidence_sources>(.*?)(?:</evidence_sources>|\*\*COMPLIANCE|$)', full_response, re.DOTALL | re.IGNORECASE)
+        extracted_evidence = evidence_match.group(1).strip() if evidence_match else "None"
         
         # Parse Verdict
         compliance_verdict = "Insufficient Info"
@@ -172,11 +213,11 @@ class RcmAuditor:
 
         # Construct result
         result = row.copy()
-        result['Verification_Step'] = verification_step
+        result['Verification_Step'] = extracted_evidence
         result['AI_Answer'] = final_answer
         result['Validation_Score'] = validation_result.get('score', 0)
         result['Validation_Reasoning'] = validation_result.get('reasoning', '')
         result['Compliance_Verdict'] = compliance_verdict
-        result['Evidence_Sources'] = ", ".join(evidence_used[:5]) # Top 5 pages
+        result['Evidence_Sources'] = extracted_evidence
         
         return result

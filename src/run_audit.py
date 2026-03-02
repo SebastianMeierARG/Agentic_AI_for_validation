@@ -34,6 +34,18 @@ def main():
         return
 
     results = []
+    
+    # Apply Tier filtering
+    target_tier = str(CONFIG.get('filtering', {}).get('tier', 'all')).strip().lower()
+    
+    if target_tier != 'all':
+        if 'Tier (1/2/3)' in df.columns:
+            df['Tier (1/2/3)'] = df['Tier (1/2/3)'].astype(str).str.strip().str.lower()
+            df = df[df['Tier (1/2/3)'] == target_tier]
+            print(f"Filtered for Tier: {target_tier}. Remaining rows: len(df)")
+        else:
+            print("Warning: 'Tier (1/2/3)' column not found in input data. Skipping filtering.")
+
     total_rows = len(df)
     print(f"Processing {total_rows} rows...")
     
