@@ -26,7 +26,7 @@ class RcmAuditor:
         self.rag_engine.build_index()
 
     def generate_client_summary(self):
-        output_file = "outputs/client_summary.md"
+        output_file = os.path.join(PROJECT_ROOT, "outputs", "client_summary.md")
         if os.path.exists(output_file):
             print(f"Client summary already exists at {output_file}")
             return

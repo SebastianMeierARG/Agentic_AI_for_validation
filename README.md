@@ -10,6 +10,25 @@ https://mermaid.ai/app/projects/d845e351-9519-438c-8681-d427564ff745/diagrams/6a
 - **Compliance Verdict**: Automatically classifies findings (Compliant, Non-Compliant, etc.).
 - **Client Summary**: Generates high-level summaries of client policies.
 
+## Validation Mechanisms
+The tool incorporates a multi-layered approach to ensure reliability and factual accuracy:
+
+### 1. Extrinsic Validation (Expert Comparison)
+Located in `validate_audit.py`, this mechanism programmatically compares the AI-generated answers against a human expert's ground truth (`inputs/rcm_expert_answer.csv`). 
+- **Semantic Similarity (Cosine Score - 80% Weight)**: Uses `sentence-transformers` (`all-MiniLM-L6-v2`) to evaluate the underlying meaning and conceptual overlap.
+- **Lexical Similarity (Jaccard Score - 20% Weight)**: Ensures factual exactness by measuring the exact term/keyword overlap.
+- Outputs a comprehensive `outputs/validation_comparison_report.csv` detailing the automated grading.
+
+### 2. Intrinsic Validation (Self-Critique QA Step)
+Located in `rcm_engine.py` (using the `auditor_critique.j2` template), this acts as an automated Quality Assurance layer.
+- After the AI generates an answer, a secondary LLM call evaluates that answer against the raw Context and original Query.
+- **Scoring (0-10)**: Evaluates Truthfulness and Thoroughness.
+- **Hallucination Checks**: Specifically calculates a `hallucination_rate` and `hallucination_count`, severely penalizing the model (Score: 0) if it invents numbers, claims facts not in the text, or provides unauthorized regulatory advice.
+
+### 3. Prompt-Level Grounding & Retrieval Constraints
+- **Strict Evidence Citations**: The `auditor_response.j2` template enforces that the LLM must append specific page and document citations immediately after every fact.
+- **HyDE (Hypothetical Document Embeddings)**: Used in `rag_engine.py` to draft a hypothetical correct answer to improve semantic search relevance across different languages (e.g., Spanish context vs. English queries).
+
 ## High-Level Flow
 At its core, the tool operates as a **Retrieval-Augmented Generation (RAG)** pipeline designed to automate compliance auditing (specifically for IFRS 9). The flow works like this:
 1. **Ingest Documents:** It reads the regulatory policies and methodology documents you provide (`documents/`).

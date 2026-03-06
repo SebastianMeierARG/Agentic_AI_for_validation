@@ -11,7 +11,10 @@ def main():
     auditor = RcmAuditor()
     print("Initializing RAG Engine (this may take a moment)...")
     auditor.initialize_rag()
-    
+
+    print("Generating Client Summary...")
+    #auditor.generate_client_summary() # Commented out for now
+
     # Load Input
     input_csv = CONFIG['paths']['input_csv']
     if not os.path.exists(input_csv):

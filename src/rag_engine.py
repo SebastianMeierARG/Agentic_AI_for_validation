@@ -4,7 +4,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage, SystemMessage
-from config import CONFIG
+from config import CONFIG, PROJECT_ROOT
 from llm_factory import get_llm, get_embeddings
 import shutil
 import time
@@ -12,12 +12,12 @@ import time
 class RagEngine:
     def __init__(self):
         self.documents_path = CONFIG['paths']['documents_folder']
-        self.index_path_client = "faiss_index_client"
+        self.index_path_client = str(PROJECT_ROOT / "faiss_index_client")
         self.vector_store = None
         
         # Phase 2: Regulations Paths
-        self.regulations_path = "regulations"
-        self.index_path_regs = "faiss_index_regs"
+        self.regulations_path = str(PROJECT_ROOT / "regulations")
+        self.index_path_regs = str(PROJECT_ROOT / "faiss_index_regs")
         self.vector_store_regs = None
 
         # Load document language from config
