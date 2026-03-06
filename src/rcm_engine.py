@@ -60,12 +60,11 @@ class RcmAuditor:
     def process_row(self, row):
         # a) Combine 'Control Reference' + 'Design Effectiveness Assessment' (+ optional Test Procedure) from CSV into a query.
         control_ref = row.get('Control Reference', 'Unknown')
-        # KEY FIX: Use the question/assessment intent, not just the test steps.
         design_assessment = row.get('Design Effectiveness Assessment', '')
         test_procedure = row.get('Test Procedures', row.get('Test Procedure', ''))
         
-        # Construct a richer query
-        query = f"Control Ref: {control_ref}. Question: {design_assessment} (Procedure: {test_procedure})"
+        # Construct a richer query that heavily emphasizes the action required
+        query = f"We are auditing '{control_ref}'. The requirement is: '{design_assessment}'. Specifically, we must verify the following Test Procedure: '{test_procedure}'."
         
         # b) Retrieve context using the new Spanish-translation logic (handled in RagEngine)
         retrieved_docs = self.rag_engine.retrieve(query, k=10)
@@ -115,7 +114,11 @@ class RcmAuditor:
 
         # c) Call the LLM with a prompt from the template
         template = self.jinja_env.get_template('auditor_response.j2')
-        prompt_text = template.render(context=context_text, query=query)
+        prompt_text = template.render(
+            context=context_text, 
+            design_assessment=design_assessment, 
+            test_procedure=test_procedure
+        )
 
         # Retry logic for generation
         from google.api_core.exceptions import ResourceExhausted

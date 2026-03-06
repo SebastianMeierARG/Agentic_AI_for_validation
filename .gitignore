@@ -5,6 +5,9 @@ __pycache__/
 .venv
 documents/
 regulations/
+inputs/
+outputs/
 faiss_index_client/
 faiss_index_server/
 faiss_index_regs/
+.csv

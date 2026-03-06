@@ -45,21 +45,21 @@ def main():
         if 'Tier (1/2/3)' in df.columns:
             df['Tier (1/2/3)'] = df['Tier (1/2/3)'].astype(str).str.strip().str.lower()
             df = df[df['Tier (1/2/3)'] == target_tier]
-            print(f"Filtered for Tier: {target_tier}. Remaining rows: len(df)")
+            print(f"Filtered for Tier: {target_tier}. Remaining rows: {len(df)}")
         else:
             print("Warning: 'Tier (1/2/3)' column not found in input data. Skipping filtering.")
 
     total_rows = len(df)
     print(f"Processing {total_rows} rows...")
     
-    for idx, row in df.iterrows():
-        print(f"Processing row {idx + 1}/{total_rows}...")
+    for i, (idx, row) in enumerate(df.iterrows()):
+        print(f"Processing row {i + 1}/{total_rows} (Original CSV row {idx + 2})...")
         try:
             row_dict = row.to_dict()
             res = auditor.process_row(row_dict)
             results.append(res)
         except Exception as e:
-            print(f"Error processing row {idx + 1}: {e}")
+            print(f"Error processing row {i + 1} (Original CSV row {idx + 2}): {e}")
             # Add error info to result
             err_row = row.to_dict()
             err_row['AI_Answer'] = f"Error: {e}"
