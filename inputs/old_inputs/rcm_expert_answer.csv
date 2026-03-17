@@ -1,0 +1,71 @@
+#;Control Reference;Answers based on Clients data
+1.0;1.1;"Sí. Existe una política formal llamada ""Política de Previsionamiento"" (modificada sep 2025). El documento establece explícitamente que el Directorio es el responsable de aprobar el modelo de estimación de deterioro y los parámetros utilizados."
+2.0;1.2;"Sí. La política define explícitamente en su ""Introducción"" y ""Alcance"" que su propósito es estar acorde con lo establecido por el Punto 5.5 de NIIF 9. Asimismo, menciona normativas locales aplicables como la Comunicación ""A"" 6847 para exclusiones del Sector Público. Adicionalmente, el Banco está actualizando sus procedimientos para alinearse con el punto B5.5.17 (incremento significativo de riesgo) tras la inspección."
+3.0;1.3;Sí. La Política de Previsionamiento contiene capítulos metodológicos detallados para cada parámetro de riesgo requerido: Pérdida Crediticia Esperada (Sección 4.5), PD (Sección 4.6), LGD (Sección 4.7), EAD (Sección 4.8) y PD Forward Looking (Sección 4.10).
+4.0;1.4;
+5.0;1.5;"Sí. La política establece formalmente que la Gerencia de Riesgo y Cumplimiento (junto con Riesgo Crediticio) debe revisar el modelo ""como mínimo anualmente"" y/o cada vez que se produzcan hechos que puedan alterar la metodología."
+6.0;1.6;
+7.0;1.7;
+8.0;1.8;
+9.0;2.1;"Parcialmente Documentado. La Política identifica rubros contables generales (ej. 130000 Préstamos) y aplicativos específicos (ej. ""aplicativo de Préstamos"", ""descuento de cheques""), así como fuentes externas como Nosis y RIPTE/CER. No obstante, no se evidencia un diagrama de arquitectura de datos formal o un linaje detallado de sistemas en el texto provisto."
+10.0;2.2;
+11.0;2.3;
+12.0;2.4;
+13.0;2.5;
+14.0;2.6;
+15.0;2.7;
+16.0;3.1;Sí. Los criterios están definidos: operaciones que no se liquidan en aplicativos estándar o casos especiales (ej. emergencia agropecuaria). Para estos casos, se utiliza un modelo de score específico con 10 variables (ej. Situación en Sistema Financiero, Atraso, Apalancamiento).
+17.0;3.2;"Sí. La política define reglas de mapeo específicas basadas en ""Tipos de Operación"" (ej. Banca Empresa = Tipos 3, 6, 8). Existe un control explícito para asegurar que, tras el filtrado, no queden operaciones sin segmento asignado. "
+18.0;3.3;
+19.0;3.4;
+20.0;3.5;
+;3.6;No. La segmentación no está respaldada cuantitativamente. No se han ejecutado tests cuantitativos (homogeneidad, heterogeneidad, PSI, concentración) para asegurar que la segmentación es adecuada
+21.0;4.1;"Parcial.  La respuesta a la inspección confirma que la metodología de ""contagio de stage"" entre operaciones del mismo cliente ""Ya se encuentra operativa en la metodología actual"".No existen criterios UTP para entradas en stage 3 ni umbral de materialidad de acuerdo con la nueva DoD"
+22.0;4.2;Sí, con cambios en curso. La Sección 4.6 documenta la metodología actual (curvas de frecuencia histórica promediadas). Sin embargo, el BCRA observó que el cálculo se basaba en montos en lugar de casos. El Banco se comprometió a cambiar la metodología para usar cantidad de casos (exposiciones individuales) para septiembre de 2025.
+23.0;5.1;Ajustándose a PiT. El BCRA señaló que la ventana histórica de 8 años era excesiva para el enfoque Point-in-Time (PiT) requerido para Stage 1. El Banco está implementando una nueva ventana de 36 meses para reflejar mejor las condiciones económicas actuales. El componente Forward Looking ya utiliza un modelo SARIMAX sensible a variables exógenas (RIPTE).
+24.0;5.2;
+25.0;5.3;Sí. La metodología se encuentra documentada y justificada. Para construir la cola de la curva en los casos donde faltan datos históricos recientes (triángulos de observaciones faltantes), el Banco utiliza explícitamente la técnica Chain Ladder (development methodology) para estimar y proyectar los valores hasta el mes 60. No obstante, el umbral del 30% utilizado en el criterio de contagio entre operaciones del mismo cliente no está sustentado por análisis cuantitativos. Asimismo, si bien el modelo contempla la existencia de contagio entre operaciones del mismo cliente, no se dispone de controles periódicos ni evidencia documental que demuestre que dicha regla se aplica de manera consistente en la práctica. No existen reportes que verifiquen si todas las operaciones relacionadas se reclasifican adecuadamente cuando una entra en incumplimiento, ni pruebas de revisión manual o automatizada que permitan detectar inconsistencias.
+26.0;6.1;La metodología de PD presenta una explicación teórica acorde y la política incluye resultados de validación estadística para el modelo Forward Looking (SARIMAX), incluyendo indicadores como AIC, BIC, pruebas de Ljung-Box y significatividad de parámetros (p-values). Asimismo, para la nueva PD se contemplan pruebas de cálculo en paralelo durante el período de transición. No obstante, la reducción de la ventana histórica a 36 meses y la exclusión de datos anteriores a 2021 se basan principalmente en inspección visual y juicio experto, sin análisis cuantitativos o de sensibilidad que respalden estas decisiones. Tampoco se detalla cuántas curvas históricas se utilizan ni se presentan análisis que evalúen la representatividad histórica o la presencia de períodos atípicos (como COVID), lo que limita la solidez y trazabilidad de la metodología conforme a NIIF 9.a
+27.0;6.2;En Implementación. Existen controles analíticos mensuales que explican las diferencias entre la previsión normativa y NIIF (analizando desviaciones en PD por segmento). Además, para la nueva metodología de PD, el Banco realizará ejecuciones en paralelo en julio y agosto de 2025 para controlar la consistencia de los resultados antes de la puesta en producción.
+28.0;6.3;Si bien el Banco adoptó decisiones metodológicas relevantes para la estimación de PD (como excluir datos previos a 2021 por “cambios de comportamiento” o eliminar los últimos 6 meses del histórico), el Banco confirmó que estas exclusiones no están respaldadas por análisis cuantitativos. Tampoco se documentan criterios estadísticos para determinar la representatividad de la ventana de 36 meses ni pruebas que evalúen períodos atípicos como COVID. Estas limitaciones reducen la transparencia y robustez de la estimación de PD lifetime y su consistencia con la vida esperada de las exposiciones bajo NIIF 9.
+29.0;6.4;
+30.0;6.5;"No se evidencia la realización de análisis formales de estabilidad, sensibilidad o backtesting que respalden la calibración y desempeño del modelo de PD, conforme a las expectativas regulatorias. En particular, no se han efectuado validaciones que demuestren la representatividad de la ventana de 36 meses ni la exclusión de los últimos 6 meses de datos, tampoco se han evaluado períodos atípicos (como COVID), lo que impide confirmar que la PD estimada refleje adecuadamente el comportamiento real del portafolio.
+
+Adicionalmente, persisten debilidades en la documentación metodológica vinculadas al tratamiento técnico de ciertos parámetros, lo que refuerza la necesidad de fortalecer la validación integral del modelo bajo NIIF 9"
+31.0;6.6;
+32.0;7.1;"Sí. La asunción de pérdida total está documentada. A partir de los 480 días de atraso (aprox. 16 meses), se ""fuerza una LGD de 100%"". Esto se justifica para asegurar que la operación esté totalmente previsionada antes de su pase a Cuentas de Orden."
+33.0;7.2;
+34.0;7.3;No Documentado. Aunque se describen cambios metodológicos futuros (como la incorporación de un modelo Forward Looking para LGD ), el texto actual no detalla controles específicos de calidad de datos sobre los inputs históricos de recupero.
+35.0;7.4;
+36.0;7.5;El supuesto de pérdida total aplicado luego de determinado período de atraso no se encuentra respaldado por análisis histórico ni evidencia cuantitativa que demuestre que dicho plazo refleja el patrón real de recuperaciones. La ausencia de sustento empírico limita la fiabilidad del parámetro LGD y su alineación con las expectativas metodológicas bajo NIIF 9.
+37.0;7.6;
+38.0;7.7;No se evidencia un análisis cuantitativo que respalde el tratamiento de garantías en la estimación de LGD ni claridad sobre su incorporación en los flujos de recupero. La falta de controles y validaciones formales sobre esta información podría generar estimaciones sesgadas de LGD, afectando su robustez y trazabilidad metodológica.
+39.0;7.8;
+40.0;8.1;Si bien la metodología contempla de forma explícita el tratamiento de casos en los que la deuda supera el límite, estableciendo que cuando esto ocurre la EAD adicional se fija en cero para evitar que la exposición se infle artificialmente y asegurar que la EAD sea igual al saldo de deuda, la metodología permanece incompleta desde una perspectiva cuantitativa. En particular, no existe un modelo de CCF que sustente empíricamente la evolución de las exposiciones fuera de balance, ni se evidencian análisis históricos o estudios de comportamiento que respalden estos supuestos, lo que limita la solidez metodológica del parámetro EAD bajo NIIF 9.
+41.0;8.2;El Banco no cuenta con un modelo formal ni análisis históricos que respalden cuantitativamente los factores de conversión de crédito (CCF) aplicados a exposiciones fuera de balance. La ausencia de validaciones y backtesting limita la robustez técnica del parámetro conforme a NIIF 9.
+42.0;8.3;
+43.0;8.4;
+44.0;8.5;
+45.0;8.6;No se identificaron exposiciones fuera de balance en moneda extranjera que requieran controles específicos adicionales para la conversión de EAD, por lo que el punto se considera no aplicable en el contexto actual.
+46.0;9.1;
+47.0;9.2;
+48.0;9.3;La información prospectiva se incorpora a la PD mediante un modelo SARIMAX con variables macroeconómicas sin embargo no existen escenarios discretos ponderados ni incluye análisis de sensibilidad, lo que limita su alineación con las expectativas de NIIF 9. 
+49.0;9.4;
+50.0;10.1;No se evidencia un proceso formal documentado para la selección, desarrollo y validación del modelo macroeconómico utilizado en el componente Forward Looking. La ausencia de análisis alternativos, pruebas de sensibilidad y validaciones estructurales limita la trazabilidad y robustez del FLI bajo NIIF 9.
+51.0;10.2;
+52.0;10.3;
+53.0;10.4;
+54.0;10.5;
+55.0;10.6;
+56.0;11.1;La metodología no detalla de manera suficiente cómo se integran los factores cuantitativos y cualitativos en el cálculo final de la Pérdida Crediticia Esperada, ni se documenta adecuadamente el tratamiento de activos POCI. Esta falta de transparencia afecta la reproducibilidad y consistencia del cálculo ECL bajo NIIF 9.
+57.0;11.2;No se encuentran documentados criterios, umbrales ni lineamientos formales para la determinación consistente del pase a Stage 1, 2 o 3 en provisión individual. Tampoco se evidencia un proceso sistemático de evaluación de factores cualitativos ni de contraste de información declarada por el cliente. Esta ausencia de definición afecta la consistencia del staging bajo NIIF 9.
+58.0;11.3;No se encuentran documentados criterios, umbrales ni lineamientos formales para la determinación consistente del pase a Stage 1, 2 o 3 en provisión individual. Tampoco se evidencia un proceso sistemático de evaluación de factores cualitativos ni de contraste de información declarada por el cliente. Esta ausencia de definición afecta la consistencia del staging bajo NIIF 9.
+59.0;11.4;
+60.0;11.5;El ISRC se basa principalmente en el umbral de 30 días de atraso, sin incorporar un análisis cuantitativo del incremento significativo de la PD Lifetime respecto al momento de originación, conforme exige NIIF 9. No se aplican criterios de aumento relativo ni referencias como “threefold increase”. Esto limita la correcta identificación de incrementos significativos de riesgo crediticio.
+61.0;11.6;
+62.0;11.7;
+63.0;12.1;La documentación y los procesos actuales no evidencian un esquema formal de monitoreo periódico del modelo NIIF 9. Si bien el Banco realiza revisiones mensuales de diferencias entre previsiones NIIF y normativas, no se dispone de métricas estadísticas de seguimiento como PSI, pruebas de estabilidad o análisis de desempeño en producción. Asimismo, los cambios recientes en la estimación de PD (cálculo por casos y ventana histórica de 36 meses) no cuentan aún con reportes formales de estabilidad ni monitoreo estadístico.
+64.0;12.2;
+65.0;13.1;No existe una política formal documentada que regule la aplicación de overrides en el proceso NIIF 9, incluyendo criterios de aplicación, documentación requerida, límites cuantitativos, niveles de aprobación y controles asociados. Esta ausencia debilita la gobernanza del modelo conforme a NIIF 9 B5.5.50.
+66.0;13.2;El Banco cuenta con un proceso formal que asegura la adecuada documentación, justificación y aprobación independiente de los ajustes aplicados bajo el esquema de “Tratamiento Individual”. Los ajustes manuales son determinados por el Área de Riesgo Crediticio y posteriormente elevados al Directorio para su validación, garantizando independencia y control. Asimismo, se establece que futuros ajustes forward-looking, especialmente en LGD, serán revisados y aprobados por el Comité de Riesgo y Cumplimiento, quedando formalmente documentados en actas. 
+67.0;13.3;
