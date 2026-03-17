@@ -117,9 +117,11 @@ class RagEngine:
     def generate_search_query(self, query):
         """Generates a hypothetical answer (HyDE) in the target document language."""
         system_prompt = (
-            f"You are an expert Auditor. The user is asking: '{query}'.\n"
-            f"Your task: Write a HYPOTHETICAL text snippet in {self.doc_language} that answers this question using technical banking vocabulary.\n"
-            "Output ONLY the hypothetical statement."
+            f"You are an expert Bank Auditor. The user is asking the following query about interpreting a bank's policy:\n\n"
+            f"'{query}'\n\n"
+            f"Your task: Write a detailed HYPOTHETICAL paragraph in {self.doc_language} that answers this question, exactly as it might appear in a bank's official model governance documentation or risk policy.\n"
+            "Include technical IFRS 9 banking vocabulary, potential methodological synonyms (e.g., if asked about backtesting, mention PSI, stability, out-of-time validation), and specific examples of what compliance looks like.\n"
+            "Output ONLY the hypothetical text."
         )
         messages = [
             SystemMessage(content="You are a helpful assistant."),
@@ -146,10 +148,10 @@ class RagEngine:
                         raise e 
                 else:
                     raise e
-        
+
         return response.content
 
-    def retrieve(self, query, k=10):
+    def retrieve(self, query, k=15):
         # Ensure indices are ready
         if not self.vector_store:
             print("Client Vector store not found. Building...")

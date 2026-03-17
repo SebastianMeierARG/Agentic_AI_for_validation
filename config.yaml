@@ -3,8 +3,10 @@ llm_settings:
   temperature: 0.0
   openai:
     model: "gpt-4o-mini"
+    embedding_model: "text-embedding-3-small"
   google:
     model: "models/gemini-pro-latest"
+    embedding_model: "models/embedding-001"
 
 rag_settings:
   chunk_size: 1500

@@ -37,14 +37,19 @@ def get_embeddings(override_config=None):
     provider = settings.get('provider', 'openai').lower()
     
     if provider == 'google':
-        model_name = "models/gemini-embedding-001" # Corrected model from list_models
+        model_name = settings.get('google', {}).get('embedding_model', 'models/embedding-001')
         api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GOOGLE_API_KEY or GEMINI_API_KEY not found in environment variables.")
         return GoogleGenerativeAIEmbeddings(model=model_name, google_api_key=api_key)
     
     else: # Default to openai
-        return OpenAIEmbeddings(model="text-embedding-3-small")
+        model_name = settings.get('openai', {}).get('embedding_model', 'text-embedding-3-small')
+        api_key = os.getenv("OPENAI_API_KEY")
+        kwargs = {"model": model_name}
+        if api_key:
+            kwargs["openai_api_key"] = api_key.strip()
+        return OpenAIEmbeddings(**kwargs)
 
 def reload_config_and_reinit():
     """

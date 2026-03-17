@@ -60,8 +60,8 @@ class RcmAuditor:
     def process_row(self, row):
         # a) Combine 'Control Reference' + 'Design Effectiveness Assessment' (+ optional Test Procedure) from CSV into a query.
         control_ref = row.get('Control Reference', 'Unknown')
-        design_assessment = row.get('Design Effectiveness Assessment', '')
-        test_procedure = row.get('Test Procedures', row.get('Test Procedure', ''))
+        design_assessment = row.get('Design Effectiveness Assessment 2.0', row.get('Design Effectiveness Assessment', ''))
+        test_procedure = row.get('Test Procedures 2.0', row.get('Test Procedures', row.get('Test Procedure', '')))
         
         # Construct a richer query that heavily emphasizes the action required
         query = f"We are auditing '{control_ref}'. The requirement is: '{design_assessment}'. Specifically, we must verify the following Test Procedure: '{test_procedure}'."

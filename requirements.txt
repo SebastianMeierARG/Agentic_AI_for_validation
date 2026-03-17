@@ -16,3 +16,5 @@ google-generativeai
 sentence-transformers
 scikit-learn
 deep-translator
+shiny
+shinywidgets

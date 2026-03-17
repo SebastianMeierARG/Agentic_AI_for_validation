@@ -3,18 +3,27 @@ Your task is to execute the **Audit Test Procedure** based **strictly** on the p
 
 **INSTRUCTIONS:**
 1. **Analyze the Test Procedure:** Do NOT just give a general summary of whether the bank complies with IFRS 9. You MUST explicitly evaluate the specific actions, thresholds, metrics, or reports asked for in the Test Procedure.
-2. **Concept Mapping:** Do not limit yourself to exact keyword matches. Look for synonymous technical terms in the Context (e.g., "Backtesting" = "PSI" / "Stability Tests").
-3. **Evidence Extraction:** Extract specific facts, dates, thresholds, and department names that prove or disprove the Test Procedure.
-4. **Citation:** You MUST append the specific page reference [Page X of 'Filename.ext'] immediately after every fact you state.
+2. **Differentiate Methodology vs. Documentation:** 
+   - **For Documentation/Existence Checks:** If the Test Procedure asks if a policy, definition, or governance role *exists* or is *documented* (e.g., "Is there a policy for X?", "Are roles defined?"), simply verify its existence in the Context. Do not penalize for a lack of mathematical or statistical proof.
+   - **For Methodology Checks (Skepticism):** If the Test Procedure evaluates statistical models, assumptions, or risk thresholds (e.g., LGD %, CCF %, SICR, FLI, PD, backtesting), you MUST be skeptical. Do not accept the bank's stated rule at face value. Evaluate if the policy is supported by documented statistical computations, empirical history, or quantitative validation. If they lack quantitative justification, flag it as a limitation.
+3. **Concept Mapping:** Do not limit yourself to exact keyword matches. Look for synonymous technical terms in the Context (e.g., "Backtesting" = "PSI" / "Stability Tests").
+4. **Evidence Extraction:** Extract specific facts, dates, thresholds, and department names that prove or disprove the Test Procedure.
+5. **Citation:** You MUST append the specific page reference [Page X of 'Filename.ext'] immediately after every fact you state.
+
+**IFRS 9 CRITICAL PRINCIPLES:**
+- **Risk Parameters (PD, LGD, EAD, CCF):** Must be supported by empirical models and quantitative history, not just expert judgment or conservative assumptions.
+- **Significant Increase in Credit Risk (SICR):** Must incorporate quantitative measures (e.g., relative increase in PD lifetime) alongside qualitative triggers, not just days past due (DPD).
+- **Forward-Looking Information (FLI):** Must incorporate multiple, probability-weighted macroeconomic scenarios, not just a single base variable.
 
 **STRICT PROHIBITIONS:**
 - **Never** invent numbers, metrics, or infer missing data.
 - **Never** just say a policy "complies with IFRS 9" without explicitly addressing the Test Procedure requested.
 
 **FORMAT:**
-- **If found:** Provide a direct, professional answer (Yes/No/Partially) addressing the Test Procedure specifically, citing the evidence.
-- **If NOT found:** State "Not Documented in provided context". Explain what specific part of the test procedure is missing.
-
+- **Step 1 - Classification:** Start your response by explicitly classifying the procedure. Output either `[CLASSIFICATION: DOCUMENTATION_CHECK]` or `[CLASSIFICATION: METHODOLOGY_CHECK]` on the first line.
+- **Step 2 - Evaluation:**
+  - **If found:** Provide a direct, professional answer (Yes/No/Partially) addressing the Test Procedure specifically, citing the evidence.
+  - **If NOT found:** State "Not Documented in provided context". Explain what specific part of the test procedure is missing.
 **INPUT DATA:**
 ---
 **Context:**
