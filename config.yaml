@@ -11,17 +11,67 @@ llm_settings:
 rag_settings:
   chunk_size: 1500
   chunk_overlap: 300
-  document_language: "Spanish" # "Spanish" or "English"
+  document_language: "Spanish" # Any language, e.g. "Spanish", "English", "German", "French"
+  # L2 distance threshold: chunks with score > threshold are discarded before reranking.
+  # For normalised OpenAI embeddings, L2=1.0 ≈ cosine_sim=0.5 (reasonable relevance).
+  # Increase (e.g. 1.5) to be more permissive; decrease (e.g. 0.8) for stricter filtering.
+  # L2 distance threshold. Raised to 1.8 to avoid filtering valid Spanish chunks —
+  # cross-lingual embeddings (Spanish doc vs. English query) produce higher L2 distances
+  # than monolingual pairs. Only discard true noise (score > 1.8 ≈ cosine_sim < -0.62).
+  retrieval_score_threshold: 1.8
+  # Chunks from client docs guaranteed in context regardless of reranking.
+  # Prevents regulation docs from crowding out client policy pages.
+  client_top_k: 8
+  # Chunks from regulation docs (capped to avoid flooding client context).
+  regs_top_k: 4
+  # Final chunk count passed to the LLM after reranking (client + regs combined).
+  rerank_top_k: 10
+  # Multilingual MS MARCO reranker — handles Spanish, English, and mixed pairs.
+  # Downloads ~270MB on first use. Substantially better than stsb-roberta-base for Spanish.
+  reranker_model: "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 
 paths:
   input_csv: "inputs/rcm_input.csv"
   output_json: "outputs/audit_results.json"
   documents_folder: "documents/"
   expert_answers_csv: "inputs/rcm_expert_answer.csv"
-  validation_report_csv: "outputs/validation_comparison_report.csv"
+  validation_report_csv: "outputs/val_metrics.csv"
+  flagged_review_json: "outputs/flagged_for_review.json"
+  run_manifest_json: "outputs/run_manifest.json"
+
+judge_llm:
+  # Independent LLM used for cross-LLM hallucination checks and LLM-as-a-judge scoring.
+  # Fallback chain (first available wins):
+  #   1. Groq         — free, fast; requires GROQ_API_KEY. Limit: 100k tokens/day free tier.
+  #   2. Together AI  — free model available; requires TOGETHER_API_KEY (console.together.ai).
+  #   3. Ollama       — local, zero cost, zero rate limits; requires Ollama running locally.
+  #   4. Secondary provider (Google/OpenAI, whichever is not primary)
+  #   5. Primary LLM  — last resort, least independent
+  model: "llama-3.3-70b-versatile"
+  # Together AI free model (no API cost, ~same quality as Groq/Llama):
+  together_model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+  # Ollama local model — install Ollama from https://ollama.com, then run: ollama pull llama3.2
+  # Good lightweight options: llama3.2, mistral, qwen2.5:7b
+  ollama_model: "llama3.2"
+  ollama_base_url: "http://localhost:11434"
 
 validation:
   enable_self_critique: true
+  # Use the secondary LLM provider to independently grade the answer.
+  # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
+  enable_cross_llm_critique: true
+  # Confidence score below this value (0-100) will flag the control for human review.
+  confidence_threshold: 60.0
+
+audit_trail:
+  enabled: true
+  # Intrinsic critique score (0-10) below this will flag the control for human review.
+  flag_score_threshold: 6
 
 filtering:
   tier: '1' # Can be 'all', or a specific tier like 1, 2, or 3
+  # Weights used for risk-weighted compliance scoring in the validation report.
+  tier_weights:
+    '1': 3
+    '2': 2
+    '3': 1

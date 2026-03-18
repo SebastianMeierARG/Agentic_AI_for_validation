@@ -13,7 +13,7 @@ def run_pipeline():
     validate_audit()
     
     print("Creating the Validation Report.", flush=True)
-    os.system('python src/generate_performance_report.py')
+    # os.system('python src/generate_performance_report.py')
 
 if __name__ == "__main__":
     run_pipeline()

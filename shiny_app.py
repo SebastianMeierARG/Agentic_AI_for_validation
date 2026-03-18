@@ -16,6 +16,8 @@ www_dir = root_dir / "images"
 audit_results_path = outputs_dir / "audit_results.json"
 validation_report_path = outputs_dir / "validation_comparison_report.csv"
 client_summary_path = outputs_dir / "client_summary.md"
+flagged_review_path = outputs_dir / "flagged_for_review.json"
+run_manifest_path = outputs_dir / "run_manifest.json"
 input_csv_path = inputs_dir / "rcm_input.csv"
 expert_csv_path = inputs_dir / "expert_answer.csv"
 docs_dir = inputs_dir / "docs"
@@ -43,6 +45,24 @@ def load_validation_data():
     except Exception as e:
         print(f"Error loading validation report: {e}")
     return pd.DataFrame()
+
+def load_flagged_data():
+    try:
+        if flagged_review_path.exists():
+            with open(flagged_review_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading flagged review data: {e}")
+    return []
+
+def load_run_manifest():
+    try:
+        if run_manifest_path.exists():
+            with open(run_manifest_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading run manifest: {e}")
+    return {}
 
 def load_client_summary():
     try:
@@ -112,6 +132,7 @@ app_ui = ui.page_navbar(
                 ui.hr(),
                 ui.download_button("download_audit", "Download Audit JSON", class_="btn-success w-100"),
             ),
+            ui.output_ui("flagged_banner"),
             ui.card(
                 ui.card_header("Audit Results Data (Select a row for details)"),
                 ui.output_data_frame("audit_grid"),
@@ -156,6 +177,8 @@ def server(input, output, session):
     df_audit_state = reactive.Value(load_audit_data())
     df_val_state = reactive.Value(load_validation_data())
     summary_state = reactive.Value(load_client_summary())
+    flagged_state = reactive.Value(load_flagged_data())
+    manifest_state = reactive.Value(load_run_manifest())
     log_stream = reactive.Value("Waiting for execution...")
 
     # ---------------- File Upload Handlers ----------------
@@ -235,7 +258,11 @@ def server(input, output, session):
     @reactive.Effect
     @reactive.event(input.btn_run_audit)
     async def trigger_audit():
-        await _run_locked("run_audit.py", lambda: df_audit_state.set(load_audit_data()))
+        def refresh_audit():
+            df_audit_state.set(load_audit_data())
+            flagged_state.set(load_flagged_data())
+            manifest_state.set(load_run_manifest())
+        await _run_locked("run_audit.py", refresh_audit)
 
     @reactive.Effect
     @reactive.event(input.btn_run_val)
@@ -259,6 +286,40 @@ def server(input, output, session):
                 )
             )
         return ui.div(ui.markdown(content), style="padding: 10px;")
+
+    # ---------------- Flagged Banner ----------------
+    @render.ui
+    def flagged_banner():
+        flagged = flagged_state.get()
+        manifest = manifest_state.get()
+        if not flagged:
+            return ui.div()  # nothing to show
+
+        n = len(flagged)
+        run_id = manifest.get("run_id", "unknown")
+        total = manifest.get("total_controls_processed", "?")
+
+        # List up to 5 flagged control refs
+        refs = [f.get("control_reference", "?") for f in flagged[:5]]
+        more = f" … and {n - 5} more" if n > 5 else ""
+        ref_list = ", ".join(refs) + more
+
+        return ui.div(
+            ui.div(
+                ui.strong(f"⚠ {n} of {total} controls flagged for human review"),
+                ui.span(f"  (Run: {run_id})", style="font-size: 0.85em; color: #856404; margin-left: 8px;"),
+                ui.br(),
+                ui.span(
+                    f"Controls: {ref_list}",
+                    style="font-size: 0.85em;"
+                ),
+                style=(
+                    "background-color: #fff3cd; border: 1px solid #ffc107; "
+                    "border-left: 5px solid #ffc107; border-radius: 4px; "
+                    "padding: 10px 14px; margin-bottom: 12px; color: #856404;"
+                ),
+            )
+        )
 
     # ---------------- Audit Filters & Table ----------------
     @render.ui

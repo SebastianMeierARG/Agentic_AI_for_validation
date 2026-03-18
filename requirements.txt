@@ -11,6 +11,9 @@ jupyter
 pyyaml
 tiktoken
 openpyxl
+langchain-groq
+langchain-together
+langchain-ollama
 langchain-google-genai
 google-generativeai
 sentence-transformers
