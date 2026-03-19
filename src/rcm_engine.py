@@ -105,22 +105,29 @@ class RcmAuditor:
 
     def _cross_llm_critique(self, context_text: str, answer: str) -> dict:
         """
-        Ask the secondary LLM to independently assess whether the answer contains
-        claims not supported by the context (hallucination check).
+        Ask an independent LLM to check whether the answer contains claims not
+        supported by the context.
 
-        Returns a dict with keys: hallucinated (bool), unsupported_claims (list), confidence_in_answer (int 0-100).
-        Returns None if cross-LLM critique is unavailable.
+        Uses a single provider queue shared across all rows. On any provider
+        failure (quota, credit limit, auth, or repeated per-minute rate limits)
+        the queue advances to the next provider — no waiting on a broken provider.
+
+        Returns a dict with keys: hallucinated, unsupported_claims, confidence_in_answer.
+        Returns None if all providers fail.
         """
-        secondary_llm = self._get_secondary_llm()
-        if secondary_llm is None:
-            return None
+        # Build the provider queue once per auditor instance.
+        if not hasattr(self, '_cross_llm_queue'):
+            from llm_factory import get_judge_llm, get_fallback_judge_llm, get_secondary_llm, get_llm as _get_primary
+            self._cross_llm_queue = [get_judge_llm, get_fallback_judge_llm, get_secondary_llm, _get_primary]
+            self._cross_llm_idx   = 0
+            self._cross_llm_llm   = None  # active provider instance
 
         prompt = (
             "You are an independent AI auditor reviewing an answer produced by another AI system.\n\n"
             "Your task: Determine whether the answer contains any factual claims that are NOT supported "
             "by the provided context. Do NOT penalise for missing information — only flag invented facts.\n\n"
             "Context (retrieved from official bank documents):\n"
-            f"{context_text[:4000]}\n\n"  # cap to avoid token overflow
+            f"{context_text[:4000]}\n\n"
             "AI-Generated Answer:\n"
             f"{answer}\n\n"
             "Return ONLY valid JSON with these exact keys:\n"
@@ -128,51 +135,45 @@ class RcmAuditor:
             '"unsupported_claims": ["claim1", "claim2"], '
             '"confidence_in_answer": <integer 0-100>}'
         )
-        try:
-            response = self._invoke_with_retry(
-                secondary_llm, [HumanMessage(content=prompt)],
-                max_retries=3, base_delay=10, label="cross-LLM critique"
-            )
-            content = response.content.strip()
-            if content.startswith("```json"):
-                content = content[7:].rstrip("```").strip()
-            elif content.startswith("```"):
-                content = content[3:].rstrip("```").strip()
-            result = json.loads(content)
-            return {
-                "hallucinated": bool(result.get("hallucinated", False)),
-                "unsupported_claims": result.get("unsupported_claims", []),
-                "confidence_in_answer": int(result.get("confidence_in_answer", 50)),
-            }
-        except Exception as e:
-            if self._is_provider_exhausted(e):
-                print(f"Cross-LLM judge exhausted ({str(e)[:80]}). Trying next provider...")
-                from llm_factory import get_fallback_judge_llm, get_secondary_llm, get_llm as _get_primary
-                for fn in [get_fallback_judge_llm, get_secondary_llm, _get_primary]:
-                    try:
-                        candidate = fn()
-                        if candidate is None:
-                            continue
-                        self._secondary_llm = candidate  # cache for remaining rows
-                        response = self._invoke_with_retry(
-                            candidate, [HumanMessage(content=prompt)],
-                            max_retries=2, base_delay=5, label="cross-LLM fallback"
-                        )
-                        content = response.content.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-                        result = json.loads(content)
-                        return {
-                            "hallucinated": bool(result.get("hallucinated", False)),
-                            "unsupported_claims": result.get("unsupported_claims", []),
-                            "confidence_in_answer": int(result.get("confidence_in_answer", 50)),
-                        }
-                    except Exception as fe:
-                        if self._is_provider_exhausted(fe):
-                            continue  # try the next provider
-                        print(f"Cross-LLM fallback failed: {fe}")
-                        break
-            else:
-                print(f"Cross-LLM critique failed: {e}")
-            return None
+
+        # Try current provider; on any failure advance the queue.
+        while self._cross_llm_idx < len(self._cross_llm_queue):
+            # Initialise provider if not yet done (or if we just advanced).
+            if self._cross_llm_llm is None:
+                fn = self._cross_llm_queue[self._cross_llm_idx]
+                try:
+                    self._cross_llm_llm = fn()
+                except Exception as init_err:
+                    print(f"Cross-LLM provider init failed: {init_err}")
+                    self._cross_llm_llm = None
+                if self._cross_llm_llm is None:
+                    self._cross_llm_idx += 1
+                    continue
+
+            try:
+                # One retry for per-minute rate limits; give up quickly and advance provider.
+                response = self._invoke_with_retry(
+                    self._cross_llm_llm, [HumanMessage(content=prompt)],
+                    max_retries=2, base_delay=5, label="cross-LLM critique"
+                )
+                content = response.content.strip()
+                if content.startswith("```json"):
+                    content = content[7:].rstrip("```").strip()
+                elif content.startswith("```"):
+                    content = content[3:].rstrip("```").strip()
+                result = json.loads(content)
+                return {
+                    "hallucinated":       bool(result.get("hallucinated", False)),
+                    "unsupported_claims": result.get("unsupported_claims", []),
+                    "confidence_in_answer": int(result.get("confidence_in_answer", 50)),
+                }
+            except Exception as e:
+                print(f"Cross-LLM provider failed ({str(e)[:100]}). Advancing to next provider...")
+                self._cross_llm_llm = None   # force re-init of next provider
+                self._cross_llm_idx += 1
+
+        print("Cross-LLM critique skipped: all providers exhausted for this run.")
+        return None
 
     @staticmethod
     def _is_provider_exhausted(exc: Exception) -> bool:

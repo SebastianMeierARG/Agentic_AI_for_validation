@@ -107,26 +107,42 @@ automatically added to `outputs/flagged_for_review.json`.
 
 ---
 
-## Improvement 3 — Cross-LLM Hallucination Detection
+## Improvement 3 — Cross-LLM Hallucination Detection with Multi-Provider Fallback
 
 ### What was the problem?
 The original self-critique step (`auditor_critique.j2`) asked the SAME LLM to grade its OWN
 answer. Research consistently shows that LLMs grade themselves too generously — the model that
 produced the hallucination also fails to detect it. This is called "self-evaluation bias".
 
+A second problem emerged after the first version was deployed: a single fallback provider is not
+enough. Groq has a 100,000 tokens/day free-tier limit, which a full validation run can exhaust.
+Together AI's "free" model still requires account credits in their billing system. If either
+provider fails mid-run, the old code recorded zeros for the rest of the file.
+
 ### What was built?
-A completely independent LLM from the OTHER provider is now used to cross-check the answer.
+An independent judge LLM with a **cascading fallback chain** that survives any single provider
+failure. The system tries each provider in order and switches automatically:
 
-- If your primary LLM is **OpenAI** → the cross-checker uses **Google Gemini**
-- If your primary LLM is **Google Gemini** → the cross-checker uses **OpenAI**
+```
+Groq (Llama 3.3 70B)
+  → Together AI (Llama 3.3 70B Free)
+    → Ollama (local, zero cost, zero rate limits)
+      → Secondary provider (Google/OpenAI, whichever is not primary)
+        → Primary LLM (last resort)
+```
 
-The secondary LLM receives:
-1. The context (the actual retrieved document chunks)
-2. The AI-generated answer
+**Automatic provider switching** is triggered by three fatal error types — errors where retrying
+the same provider will never work:
 
-It is asked one question: "Does this answer contain any claims NOT present in the context?"
+| Error code | Meaning | Action |
+|---|---|---|
+| `429 + "tokens per day"` | Daily token quota exhausted (Groq) | Switch to next provider |
+| `402` | Credit limit exceeded (Together AI) | Switch to next provider |
+| `401` | Invalid API key for this provider | Switch to next provider |
 
-It returns:
+Per-minute rate limits (`429` without "tokens per day") still trigger a wait-and-retry as before.
+
+The judge LLM receives the retrieved context and the AI-generated answer and returns:
 ```json
 {
   "hallucinated": true,
@@ -135,14 +151,16 @@ It returns:
 }
 ```
 
-### Setup requirement
-Both API keys must be in `.env`:
+### Which providers do you need?
+Add whichever keys you have to `.env` — the system uses what's available:
 ```
-OPENAI_API_KEY=your_openai_key
-GOOGLE_API_KEY=your_google_key
+GROQ_API_KEY=your_key       # Free at console.groq.com
+TOGETHER_API_KEY=your_key   # Free model at console.together.ai (needs billing method on file)
+GOOGLE_API_KEY=your_key     # Fallback
+OPENAI_API_KEY=your_key     # Fallback
 ```
-If only one key is present, cross-LLM critique is silently skipped and Confidence_Score falls back
-to self-critique only.
+If no independent provider is available, cross-LLM critique is skipped silently and
+`Confidence_Score` falls back to self-critique only.
 
 ### Where to find it
 In `outputs/audit_results.json`:
@@ -191,11 +209,22 @@ preserved in `run_history/` for every run. The timestamp is in UTC ISO format.
   },
   "regulation_hashes": {},
   "results_file": "C:/Users/.../outputs/audit_results.json",
-  "timestamped_copy": "C:/Users/.../outputs/run_history/audit_results_20250317T143022Z.json"
+  "timestamped_copy": "C:/Users/.../outputs/run_history/audit_results_20250317T143022Z.json",
+  "config_snapshot": {
+    "llm_settings": {"provider": "openai", "temperature": 0.0, ...},
+    "rag_settings":  {"chunk_size": 1500, "reranker_model": "...", ...},
+    "filtering":     {"tier": "1", "tier_weights": {"1": 3, "2": 2, "3": 1}},
+    ...
+  }
 }
 ```
-The SHA-256 hash of each PDF is a "fingerprint". If a document is changed between runs, its hash
-will change, proving that different results came from different input data.
+The SHA-256 hash of each PDF is a "fingerprint" — if a document changes between runs, its hash
+changes, proving that different results came from different input data.
+
+The `config_snapshot` records the exact `config.yaml` parameters (without comments, fully
+JSON-serialised) used for that run. This means you can look at any historical result and know
+precisely which chunk size, threshold, tier filter, and model produced it — even if `config.yaml`
+has since been changed. This is a requirement of banking AI governance frameworks (SR 11-7).
 
 **3. Flagged for review** (`outputs/flagged_for_review.json`)
 After processing all rows, controls are checked against three criteria:
@@ -491,26 +520,91 @@ also has a matching entry in the expert answer CSV.
 | `Cross_LLM_Hallucinated` | bool/null | — | Whether secondary LLM detected unsupported claims |
 | `Cross_LLM_Concerns` | string | — | Specific claims the secondary LLM flagged |
 
+---
+
+## Improvement 9 — Language-Independent Pipeline
+
+### What was the problem?
+Several components had hardcoded assumptions about Spanish: the CrossEncoder reranker was English-only (`stsb-roberta-base`), the L2 threshold was tuned for Spanish cross-lingual distances, CSV encoding used `latin-1` only, and comments throughout the code referenced "Spanish characters".
+
+### What was built?
+The pipeline now works with any document language by changing one line in `config.yaml`:
+```yaml
+rag_settings:
+  document_language: "Spanish"  # change to "English", "German", "French", etc.
+```
+
+All components adapt automatically:
+- **HyDE**: generates the hypothetical paragraph in the configured language
+- **Reranker**: `mmarco-mMiniLMv2-L12-H384-v1` is a multilingual MS MARCO model trained on 26 languages
+- **L2 threshold**: 1.8 is permissive enough for any cross-lingual embedding pair
+- **CSV encoding**: tries `utf-8 → utf-8-sig → windows-1252 → latin-1` in both `run_audit.py` and `validate_audit.py`, covering umlauts (German), accents (French), and special characters
+- **Translation**: Google Translate uses `source='auto'` — detects any language automatically
+
+---
+
+## Improvement 10 — Traceable Validation Reports
+
+### What was the problem?
+All validation runs saved to the same filename (`validation_comparison_report.csv`), overwriting the previous run. There was no way to know which judge LLM produced a given set of scores, or when the run was executed.
+
+### What was built?
+Each validation run now produces a uniquely named file:
+```
+val_metrics_{YYYYMMDDTHHMMSSz}_{judge_label}.csv
+```
+
+Examples:
+- `val_metrics_20260318T131118Z_groq_llama-3.3-70b-versatile.csv`  ← Groq ran all rows
+- `val_metrics_20260318T160245Z_google_models-gemini-pro-latest.csv` ← Groq was exhausted, fell back to Gemini
+
+The judge label is set by `llm_factory.get_judge_llm_label()` — it reflects whichever provider
+actually ran (the first one that succeeded), so the filename is always accurate even after a
+mid-run provider switch.
+
+**Why this matters for auditors:** If you compare two runs and notice different scores, you can
+check whether the judge LLM changed. A score difference caused by using Gemini instead of Llama
+is expected; a score difference with the same judge model is a signal that the audit LLM or
+documents changed.
+
+---
+
+## Quick Reference: New Fields in audit_results.json
+
+| Field | Type | Range | Meaning |
+|---|---|---|---|
+| `Validation_Score` | int | 0–10 | Self-critique score (10 = perfect, 0 = hallucination) |
+| `Hallucination_Rate` | float | 0.0–1.0 | Fraction of claims self-assessed as hallucinated |
+| `Confidence_Score` | float | 0–100 | Blended confidence from self-critique + cross-LLM |
+| `Cross_LLM_Hallucinated` | bool/null | — | Whether independent judge LLM detected unsupported claims |
+| `Cross_LLM_Concerns` | string | — | Specific claims the judge LLM flagged |
+
 ## Quick Reference: New Files
 
 | File | When created | Purpose |
 |---|---|---|
 | `outputs/flagged_for_review.json` | After every audit run | Human escalation list with flag reasons |
-| `outputs/run_manifest.json` | After every audit run | Audit trail: timestamps, model, doc hashes |
+| `outputs/run_manifest.json` | After every audit run | Audit trail: timestamps, model, doc hashes, config snapshot |
 | `outputs/run_history/*.json` | After every audit run | Immutable timestamped copy of results |
-| `outputs/client_summary.md` | After running run_summary.py | IFRS 9 policy overview across 13 topics |
+| `outputs/client_summary.md` | After `run_summary.py` | IFRS 9 policy overview across 13 topics |
+| `outputs/val_metrics_{ts}_{judge}.csv` | After `validate_audit.py` | Expert comparison with judge model and timestamp in filename |
 
-## Quick Reference: New config.yaml Settings
+## Quick Reference: config.yaml Settings
 
-| Key | Default | What it controls |
+| Key | Current default | What it controls |
 |---|---|---|
-| `rag_settings.retrieval_score_threshold` | `1.2` | L2 distance cutoff for chunk filtering |
-| `rag_settings.rerank_top_k` | `6` | Number of chunks passed to LLM after reranking |
-| `rag_settings.reranker_model` | `cross-encoder/stsb-roberta-base` | CrossEncoder model for reranking |
-| `validation.enable_cross_llm_critique` | `true` | Toggle secondary LLM hallucination check |
+| `rag_settings.document_language` | `Spanish` | Any language — affects HyDE generation language |
+| `rag_settings.retrieval_score_threshold` | `1.8` | L2 distance cutoff (permissive for cross-lingual) |
+| `rag_settings.client_top_k` | `8` | Max client chunks retrieved per query |
+| `rag_settings.regs_top_k` | `4` | Max regulation chunks (capped to avoid crowding) |
+| `rag_settings.rerank_top_k` | `10` | Final chunks passed to LLM after reranking |
+| `rag_settings.reranker_model` | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual CrossEncoder |
+| `judge_llm.model` | `llama-3.3-70b-versatile` | Groq model for judging |
+| `judge_llm.together_model` | `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free` | Together AI fallback |
+| `judge_llm.ollama_model` | `llama3.2` | Local Ollama fallback |
+| `validation.enable_cross_llm_critique` | `true` | Toggle independent LLM hallucination check |
 | `validation.confidence_threshold` | `60.0` | Below this Confidence_Score → flagged |
 | `audit_trail.enabled` | `true` | Toggle timestamped copies and manifest |
 | `audit_trail.flag_score_threshold` | `6` | Self-critique score below this → flagged |
+| `filtering.tier` | `1` | Which tier to process (`1`, `2`, `3`, or `all`) |
 | `filtering.tier_weights` | `{1:3, 2:2, 3:1}` | Tier multipliers for risk-weighted scoring |
-| `paths.flagged_review_json` | `outputs/flagged_for_review.json` | Path for flagged controls output |
-| `paths.run_manifest_json` | `outputs/run_manifest.json` | Path for run manifest output |

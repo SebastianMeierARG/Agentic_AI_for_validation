@@ -206,10 +206,12 @@ class RagEngine:
           - The CrossEncoder reranker uses a multilingual MS MARCO model that handles
             Spanish, German, French, and other languages natively.
         """
+        use_regs = CONFIG.get('rag_settings', {}).get('use_regulations', True)
+
         if not self.vector_store:
             print("Client vector store not found. Building...")
             self.build_index()
-        if not self.vector_store_regs:
+        if use_regs and not self.vector_store_regs:
             print("Regulations vector store not found. Checking/Building...")
             self.ingest_regulations()
 
@@ -233,7 +235,7 @@ class RagEngine:
             client_candidates = client_candidates[:client_top_k]
 
         regs_candidates = []
-        if self.vector_store_regs:
+        if use_regs and self.vector_store_regs:
             raw_regs = self.vector_store_regs.similarity_search_with_score(search_query, k=regs_top_k * 2)
             for doc, score in raw_regs:
                 doc.metadata['source_type'] = 'regulation'
@@ -244,6 +246,7 @@ class RagEngine:
         print(
             f"Source-balanced pool: {len([d for d, _ in client_candidates])} client + "
             f"{len([d for d, _ in regs_candidates])} regulation chunks."
+            + ("" if use_regs else " (regulations disabled)")
         )
 
         if not combined:

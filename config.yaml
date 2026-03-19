@@ -9,7 +9,7 @@ llm_settings:
     embedding_model: "models/embedding-001"
 
 rag_settings:
-  chunk_size: 1500
+  chunk_size: 1200
   chunk_overlap: 300
   document_language: "Spanish" # Any language, e.g. "Spanish", "English", "German", "French"
   # L2 distance threshold: chunks with score > threshold are discarded before reranking.
@@ -19,13 +19,16 @@ rag_settings:
   # cross-lingual embeddings (Spanish doc vs. English query) produce higher L2 distances
   # than monolingual pairs. Only discard true noise (score > 1.8 ≈ cosine_sim < -0.62).
   retrieval_score_threshold: 1.8
+  # Set to false to skip the regulations index entirely (saves ~1500 tokens/row).
+  # When false, the LLM relies on its training knowledge for regulatory context.
+  use_regulations: true
   # Chunks from client docs guaranteed in context regardless of reranking.
   # Prevents regulation docs from crowding out client policy pages.
-  client_top_k: 8
+  client_top_k: 6
   # Chunks from regulation docs (capped to avoid flooding client context).
-  regs_top_k: 4
+  regs_top_k: 2
   # Final chunk count passed to the LLM after reranking (client + regs combined).
-  rerank_top_k: 10
+  rerank_top_k: 7
   # Multilingual MS MARCO reranker — handles Spanish, English, and mixed pairs.
   # Downloads ~270MB on first use. Substantially better than stsb-roberta-base for Spanish.
   reranker_model: "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
@@ -56,7 +59,7 @@ judge_llm:
   ollama_base_url: "http://localhost:11434"
 
 validation:
-  enable_self_critique: true
+  enable_self_critique: false
   # Use the secondary LLM provider to independently grade the answer.
   # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
   enable_cross_llm_critique: true

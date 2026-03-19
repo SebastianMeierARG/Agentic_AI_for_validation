@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Setup
 ```bash
 pip install -r requirements.txt
-cp .env.example .env  # Add OPENAI_API_KEY, GEMINI_API_KEY
+cp .env.example .env  # Add OPENAI_API_KEY, GROQ_API_KEY, TOGETHER_API_KEY, GEMINI_API_KEY
 ```
 
 ### Running the Pipeline
@@ -24,67 +24,133 @@ python src/pipeline.py
 # Generate performance report
 python src/generate_performance_report.py
 
+# Generate client summary only
+python src/run_summary.py
+
 # Launch interactive Shiny dashboard
 shiny run shiny_app.py
 ```
 
 ## Architecture
 
-This is a RAG + LLM pipeline for IFRS 9 compliance auditing. It reads audit control questions from a CSV, retrieves relevant passages from client PDFs using FAISS vector search, and generates LLM answers with citations.
+RAG + LLM pipeline for IFRS 9 compliance auditing. Reads audit control questions from a CSV, retrieves relevant passages from client PDFs using FAISS vector search, generates LLM answers with citations, then runs multi-layer validation.
 
 ### Core Data Flow
 ```
-inputs/rcm_input.csv (audit questions)
+inputs/rcm_input.csv
     ↓
 src/run_audit.py (orchestrator)
     ↓
-src/rag_engine.py → faiss_index_client/ + faiss_index_regs/ (FAISS retrieval)
+src/rag_engine.py → faiss_index_client/ + faiss_index_regs/
+    (HyDE → source-balanced retrieval → score threshold → multilingual CrossEncoder reranking)
     ↓
 src/rcm_engine.py + templates/auditor_response.j2 (LLM answer generation)
     ↓
-templates/auditor_critique.j2 (intrinsic self-scoring 0-10)
+templates/auditor_critique.j2 (self-scoring 0–10)
     ↓
-outputs/audit_results.json
+cross-LLM critique via get_judge_llm() (hallucination check)
     ↓
-src/validate_audit.py (cosine similarity + LLM-as-judge vs expert answers)
+outputs/audit_results.json + run_manifest.json + flagged_for_review.json
     ↓
-outputs/validation_comparison_report.csv
+src/validate_audit.py (CrossEncoder + LLM-as-judge vs expert answers)
+    ↓
+outputs/val_metrics_{timestamp}_{judge_model}.csv
 ```
 
 ### Key Components
 
-**`src/config.py`** — Loads `config.yaml` and `.env`. All paths are resolved to absolute via `PROJECT_ROOT`. Controls LLM provider (OpenAI vs Gemini), RAG chunk size/overlap, document language (Spanish/English), and tier filtering.
+**`src/config.py`** — Loads `config.yaml` and `.env`. All paths resolved to absolute via `PROJECT_ROOT`.
 
-**`src/llm_factory.py`** — Returns the correct `ChatOpenAI` or `ChatGoogleGenerativeAI` instance and corresponding embeddings based on config. Temperature is always 0.0.
+**`src/llm_factory.py`** — Central LLM factory. Key functions:
+- `get_llm()` — returns primary LLM (OpenAI or Google) per config
+- `get_embeddings()` — returns matching embeddings instance
+- `get_judge_llm()` — cascading fallback: `_try_groq()` → `_try_together()` → `_try_ollama()` → `get_secondary_llm()` → `get_llm()`. Sets module-level `_judge_llm_label` string.
+- `get_fallback_judge_llm()` — same chain but skips Groq (called after Groq TPD exhaustion)
+- `get_judge_llm_label()` — returns filename-safe label of the judge LLM that was initialised
 
-**`src/rag_engine.py`** — Builds/loads persistent FAISS indices from PDFs in `documents/` and `regulations/`. Uses HyDE (Hypothetical Document Embeddings) to generate a synthetic answer in the target language before retrieval — this bridges Spanish/English language gaps. Implements batch embedding with exponential backoff for rate limits.
+**`src/rag_engine.py`** — Builds/loads persistent FAISS indices. Key design:
+- Two separate indices: `faiss_index_client/` and `faiss_index_regs/`
+- `retrieve()`: HyDE query in `document_language` → separate similarity search per index with independent caps (`client_top_k`, `regs_top_k`) → score threshold filter → combined pool → multilingual CrossEncoder reranking → top `rerank_top_k` chunks returned
+- L2 threshold default 1.8 (permissive) because cross-lingual embeddings produce higher distances than monolingual pairs
+- Reranker: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (multilingual MS MARCO, ~270MB)
+- Language is fully config-driven — changing `document_language` in `config.yaml` is sufficient
 
-**`src/rcm_engine.py`** — Processes each audit row: combines Control Reference + Design Effectiveness + Test Procedures into a query, retrieves top-k chunks from both FAISS indices, renders Jinja2 templates, calls the LLM, extracts `<answer>`/`<evidence_sources>`/verdict, then runs self-critique scoring.
+**`src/rcm_engine.py`** — Processes each audit row. Key methods:
+- `process_row()` — orchestrates retrieve → sanitize → render → invoke → parse → self-critique → cross-LLM → confidence score
+- `_sanitize_chunk()` — strips prompt injection patterns from retrieved chunks
+- `_cross_llm_critique()` — calls judge LLM; has `_is_provider_exhausted()` static method that catches 401/402/429-TPD errors and walks through fallback providers
+- `_invoke_with_retry()` — exponential backoff for per-minute rate limits
 
-**`templates/auditor_response.j2`** — Main prompt template. Enforces two check types: `DOCUMENTATION_CHECK` (verify existence only) and `METHODOLOGY_CHECK` (require statistical justification). Every factual claim must be cited as `[Page X of 'Filename.ext']`.
+**`templates/auditor_response.j2`** — Main prompt. Three classification types: `DOCUMENTATION_CHECK` (existence only), `METHODOLOGY_CHECK` (require statistical justification), `QUANTITATIVE_CHECK` (maximum scrutiny: PD lifetime threshold for SICR, ≥3 weighted macro scenarios for FLI, backtesting for PD/LGD/EAD). Every fact cited as `[Page X of 'Filename.ext']`.
 
-**`templates/auditor_critique.j2`** — Self-critique prompt. Returns JSON with `score` (0-10), `hallucination_rate`, and `reasoning`. A score of 0 means hallucination; 10 means comprehensive and well-cited.
+**`templates/auditor_critique.j2`** — Self-critique prompt. Returns JSON: `score` (0–10), `hallucination_rate` (0.0–1.0), `reasoning`.
 
-**`src/validate_audit.py`** — Loads `audit_results.json` and expert ground truth CSVs, computes cosine similarity via `sentence-transformers` (all-MiniLM-L6-v2), and runs an LLM-as-judge (0-100 scale) for each AI vs expert answer pair. Handles Spanish→English translation before embedding.
+**`src/validate_audit.py`** — Expert comparison. Key design:
+- `_llm_box` + `_fallback_queue` pattern: starts with `get_judge_llm()`, maintains a queue `[get_fallback_judge_llm, get_secondary_llm, get_primary_llm]`. `_is_provider_exhausted()` catches 401/402/429-TPD; `_advance_provider()` pops next provider mid-run.
+- Output path includes judge label + UTC timestamp: `val_metrics_{ts}_{judge_label}.csv`
+- `_read_expert_csv()` tries 4 encodings: `utf-8 → utf-8-sig → windows-1252 → latin-1`
+- `_safe_translate()` chunks long texts for Google Translate (4500 char limit)
+- Risk-weighted scoring: `Tier_Weight` × `Validation_Score_LLM_as_judge`
 
-**`shiny_app.py`** — Interactive dashboard with three tabs: upload/run controls, audit findings explorer (filter by verdict/tier/score), and validation metrics. Streams terminal output in real-time.
+**`src/run_audit.py`** — Orchestrator. Run manifest includes `config_snapshot` (full `config.yaml` parameters, JSON-serialised). Input CSV uses same 4-encoding fallback as validate_audit. SHA-256 hashes all PDFs in `documents/` and `regulations/`.
+
+**`shiny_app.py`** — Dashboard with four tabs: Control Center, Client Summary, Audit Findings (flagged-controls banner), Validation Report (KPI cards + row detail).
 
 ### Configuration (`config.yaml`)
-Key settings:
-- `llm.provider`: `openai` or `google`
-- `rag.chunk_size` / `rag.chunk_overlap`: Controls document chunking
-- `rag.document_language`: `spanish` or `english` (affects HyDE generation language)
-- `audit.tier`: `1`, `2`, `3`, or `all` — filters which RCM rows to audit
-- `validation.enabled`: Toggle expert comparison step
+```yaml
+llm_settings:
+  provider: "openai"          # or "google"
+  openai.model: "gpt-4o-mini"
+  openai.embedding_model: "text-embedding-3-small"
+
+rag_settings:
+  document_language: "Spanish"   # any language — affects HyDE generation
+  chunk_size: 1500
+  chunk_overlap: 300
+  retrieval_score_threshold: 1.8  # L2 distance cap; 1.8 suits cross-lingual embeddings
+  client_top_k: 8
+  regs_top_k: 4
+  rerank_top_k: 10
+  reranker_model: "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+
+judge_llm:
+  model: "llama-3.3-70b-versatile"              # Groq
+  together_model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+  ollama_model: "llama3.2"
+  ollama_base_url: "http://localhost:11434"
+
+validation:
+  enable_self_critique: true
+  enable_cross_llm_critique: true
+  confidence_threshold: 60.0
+
+audit_trail:
+  enabled: true
+  flag_score_threshold: 6
+
+filtering:
+  tier: '1'
+  tier_weights: {'1': 3, '2': 2, '3': 1}
+```
 
 ### FAISS Indices
-Indices in `faiss_index_client/` and `faiss_index_regs/` are rebuilt automatically if missing. They are tracked in git (modified state is normal after re-indexing). Place client PDFs in `documents/` and regulatory documents in `regulations/` before running.
+Rebuilt automatically if missing. Tracked in git (modified state is normal after re-indexing). Place client PDFs in `documents/` and regulatory documents in `regulations/` before running.
 
 ### Output Format (`outputs/audit_results.json`)
 Each entry contains:
-- `control_reference`, `design_effectiveness`, `test_procedure`
-- `answer` — LLM-generated answer with inline citations
-- `evidence_sources` — list of `{filename, pages}` objects
-- `verdict` — `Compliant` / `Non-Compliant` / `Partial` / `Insufficient Info`
-- `critique_score` — intrinsic quality score 0-10
-- `hallucination_rate` — float 0-1 from self-critique
+- `Control Reference`, `Design Effectiveness Assessment`, `Test Procedures`
+- `AI_Answer` — answer with inline `[Page X of 'Filename.ext']` citations
+- `Evidence_Sources` — pages and documents cited
+- `Compliance_Verdict` — `Compliant` / `Non-Compliant` / `Partial` / `Insufficient Info`
+- `Validation_Score` — self-critique 0–10
+- `Hallucination_Rate` — float 0–1 from self-critique
+- `Confidence_Score` — blended 0–100 from self-critique + cross-LLM
+- `Cross_LLM_Hallucinated` — bool/null
+- `Cross_LLM_Concerns` — string of flagged claims
+
+### Validation Report Filename Pattern
+`outputs/val_metrics_{YYYYMMDDTHHMMSSz}_{judge_label}.csv`
+
+Example: `val_metrics_20260318T131118Z_groq_llama-3.3-70b-versatile.csv`
+
+The judge label is set by `llm_factory._judge_llm_label` and reflects whichever provider actually ran (Groq, Together AI, Gemini, etc.).
