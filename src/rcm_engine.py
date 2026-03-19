@@ -296,16 +296,17 @@ class RcmAuditor:
             if not final_answer:
                 final_answer = full_response
 
-        # --- Self-critique (intrinsic validation) ---
+        # --- Self-critique (independent judge validation) ---
         validation_result = {'score': 0, 'reasoning': 'Not run', 'hallucination_rate': 0.0}
         if CONFIG.get('validation', {}).get('enable_self_critique', True):
+            from llm_factory import get_judge_llm
             critique_template = self.jinja_env.get_template('auditor_critique.j2')
             validation_prompt = critique_template.render(
                 context=context_text, query=query, answer=final_answer
             )
             try:
                 critique_response = self._invoke_with_retry(
-                    self.llm, [HumanMessage(content=validation_prompt)],
+                    get_judge_llm(), [HumanMessage(content=validation_prompt)],
                     label="self-critique"
                 )
                 content = critique_response.content.strip()

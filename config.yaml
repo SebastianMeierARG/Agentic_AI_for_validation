@@ -55,11 +55,11 @@ judge_llm:
   together_model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
   # Ollama local model — install Ollama from https://ollama.com, then run: ollama pull llama3.2
   # Good lightweight options: llama3.2, mistral, qwen2.5:7b
-  ollama_model: "llama3.2"
+  ollama_model: "llama3.1:8b"
   ollama_base_url: "http://localhost:11434"
 
 validation:
-  enable_self_critique: false
+  enable_self_critique: true
   # Use the secondary LLM provider to independently grade the answer.
   # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
   enable_cross_llm_critique: true
