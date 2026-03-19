@@ -148,13 +148,13 @@ def get_judge_llm():
     Returns the LLM used for all independent judging tasks.
 
     Fallback chain (first available wins):
-      1. Groq         — free cloud, fast; needs GROQ_API_KEY; 100k tokens/day free tier
-      2. Together AI  — free cloud model; needs TOGETHER_API_KEY (console.together.ai)
-      3. Ollama       — local, zero cost/rate-limits; needs Ollama running locally
+      1. Ollama       — local, zero cost/rate-limits; needs Ollama running locally
+      2. Groq         — free cloud, fast; needs GROQ_API_KEY; 100k tokens/day free tier
+      3. Together AI  — free cloud model; needs TOGETHER_API_KEY (console.together.ai)
       4. Secondary provider (Google/OpenAI, whichever is not the primary)
       5. Primary LLM  — last resort; least independent
     """
-    for fn, label in [(_try_groq, "Groq"), (_try_together, "Together AI"), (_try_ollama, "Ollama")]:
+    for fn, label in [(_try_ollama, "Ollama"), (_try_groq, "Groq"), (_try_together, "Together AI")]:
         llm = fn()
         if llm:
             return llm
@@ -179,9 +179,9 @@ def get_judge_llm():
 def get_fallback_judge_llm():
     """
     Returns a judge LLM that explicitly skips Groq (used when Groq TPD quota is exhausted).
-    Fallback chain: Together AI → Ollama → secondary provider → primary LLM.
+    Fallback chain: Ollama → Together AI → secondary provider → primary LLM.
     """
-    for fn in [_try_together, _try_ollama]:
+    for fn in [_try_ollama, _try_together]:
         llm = fn()
         if llm:
             return llm
