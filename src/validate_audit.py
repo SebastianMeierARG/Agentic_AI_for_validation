@@ -43,11 +43,36 @@ def _safe_translate(translator, text, max_chars=4500):
         return text  # fallback to original
 
 
-def validate_audit():
+def _detect_latest_run_folder() -> str | None:
+    """Return the most recent timestamped run folder under outputs/, or None."""
+    outputs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+    candidates = []
+    for name in os.listdir(outputs_dir):
+        folder = os.path.join(outputs_dir, name)
+        audit_file = os.path.join(folder, "audit_results.json")
+        if os.path.isdir(folder) and os.path.exists(audit_file):
+            candidates.append((name, folder))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
+def validate_audit(run_folder: str = None):
     print("Starting Validation Process...", flush=True)
 
+    # Resolve run folder: use provided path, or auto-detect the latest run
+    if run_folder is None:
+        run_folder = _detect_latest_run_folder()
+        if run_folder:
+            print(f"Auto-detected latest run folder: {run_folder}", flush=True)
+
     # 1. Load AI Results
-    output_json = CONFIG['paths']['output_json']
+    if run_folder and os.path.exists(os.path.join(run_folder, "audit_results.json")):
+        output_json = os.path.join(run_folder, "audit_results.json")
+    else:
+        output_json = CONFIG['paths']['output_json']
+
     if not os.path.exists(output_json):
         print(f"Error: {output_json} not found. Run the audit first.", flush=True)
         return
@@ -201,6 +226,10 @@ def validate_audit():
                     content = content[7:].rstrip("```").strip()
                 elif content.startswith("```"):
                     content = content[3:].rstrip("```").strip()
+                # Extract first JSON object in case model appends extra text
+                match = re.search(r'\{.*?\}', content, re.DOTALL)
+                if match:
+                    content = match.group(0)
                 result = json.loads(content)
                 return {
                     "accuracy":         float(result.get("accuracy_score", 0)),
@@ -228,15 +257,12 @@ def validate_audit():
                     return {"accuracy": 0.0, "stability": 0.0, "drift_resistance": 0.0,
                             "guardrail": 0.0, "reasoning": f"Error: {e}"}
 
-    # Build output path: embed judge model label + run timestamp so each validation run
-    # is traceable to the exact model used. E.g.:
-    #   validation_comparison_report_20240318T143022Z_groq_llama-3.3-70b-versatile.csv
-    _base_path   = CONFIG['paths']['validation_report_csv']
-    _base_dir    = os.path.dirname(_base_path)
-    _base_stem   = os.path.splitext(os.path.basename(_base_path))[0]
-    _run_ts      = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    _safe_label  = re.sub(r'[^A-Za-z0-9._-]', '-', judge_label)
-    output_path  = os.path.join(_base_dir, f"{_base_stem}_{_run_ts}_{_safe_label}.csv")
+    # Build output path inside the run folder (or outputs/ if no run folder)
+    _run_ts     = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    _safe_label = re.sub(r'[^A-Za-z0-9._-]', '-', judge_label)
+    _csv_name   = f"val_metrics_{_run_ts}_{_safe_label}.csv"
+    _out_dir    = run_folder if run_folder else os.path.dirname(CONFIG['paths']['validation_report_csv'])
+    output_path = os.path.join(_out_dir, _csv_name)
     print(f"Validation report will be saved to: {output_path}", flush=True)
     # float_format ensures locale-independent decimal output (no thousands-separator confusion)
     _CSV_KWARGS = dict(index=False, encoding='utf-8-sig', sep=';', float_format='%.4f')

@@ -9,25 +9,18 @@ import pandas as pd
 
 
 def _config_snapshot() -> dict:
-    """
-    Return a JSON-serialisable copy of CONFIG with no comments (comments are stripped
-    during YAML parsing, so CONFIG is already a plain dict — we just need to convert
-    any non-serialisable types such as pathlib.Path objects).
-    """
     def _make_serialisable(obj):
         if isinstance(obj, dict):
             return {k: _make_serialisable(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple)):
             return [_make_serialisable(i) for i in obj]
-        if hasattr(obj, '__fspath__'):  # pathlib.Path or os.PathLike
+        if hasattr(obj, '__fspath__'):
             return str(obj)
         return obj
-
     return _make_serialisable(dict(CONFIG))
 
 
 def _hash_file(path: str) -> str:
-    """Return the SHA-256 hex digest of a file."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -36,7 +29,6 @@ def _hash_file(path: str) -> str:
 
 
 def _hash_documents(folder: str) -> dict:
-    """Return a dict of {filename: sha256} for all files in folder."""
     hashes = {}
     if not os.path.exists(folder):
         return hashes
@@ -57,7 +49,12 @@ def main():
     run_timestamp = run_start.strftime("%Y%m%dT%H%M%SZ")
     print(f"Run ID: {run_timestamp}")
 
-    # Hash all source documents for the audit trail
+    # Create per-run output folder
+    run_dir = os.path.join(PROJECT_ROOT, "outputs", run_timestamp)
+    os.makedirs(run_dir, exist_ok=True)
+    print(f"Output folder: {run_dir}")
+
+    # Hash source documents for audit trail
     docs_folder = CONFIG['paths']['documents_folder']
     regs_folder = str(PROJECT_ROOT / "regulations")
     doc_hashes = _hash_documents(docs_folder)
@@ -116,51 +113,35 @@ def main():
             err_row['Validation_Score'] = 0
             err_row['Confidence_Score'] = 0.0
             results.append(err_row)
+        time.sleep(1)
 
-        time.sleep(1)  # polite delay between rows
-
-    # --- Save main output ---
-    output_json = CONFIG['paths']['output_json']
+    # --- Save audit_results.json ---
+    output_json = os.path.join(run_dir, "audit_results.json")
     try:
         with open(output_json, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=4, ensure_ascii=False)
-        print(f"Audit complete. Results saved to {output_json}")
+        print(f"Audit results saved to {output_json}")
     except Exception as e:
         print(f"Error saving results: {e}")
         return
 
-    if not CONFIG.get('audit_trail', {}).get('enabled', True):
-        return
-
-    # --- Audit trail: timestamped copy ---
-    history_dir = os.path.join(PROJECT_ROOT, "outputs", "run_history")
-    os.makedirs(history_dir, exist_ok=True)
-    timestamped_path = os.path.join(history_dir, f"audit_results_{run_timestamp}.json")
-    try:
-        with open(timestamped_path, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=4, ensure_ascii=False)
-        print(f"Audit trail copy saved to {timestamped_path}")
-    except Exception as e:
-        print(f"Warning: Could not save timestamped audit copy: {e}")
-
-    # --- Run manifest ---
+    # --- Save run_manifest.json ---
     llm_settings = CONFIG.get('llm_settings', {})
     provider = llm_settings.get('provider', 'unknown')
     model = llm_settings.get(provider, {}).get('model', 'unknown')
     manifest = {
-        "run_id": run_timestamp,
-        "timestamp_utc": run_start.isoformat(),
-        "llm_provider": provider,
-        "llm_model": model,
-        "tier_filter": target_tier,
-        "total_controls_processed": len(results),
-        "document_hashes": doc_hashes,
-        "regulation_hashes": reg_hashes,
-        "results_file": output_json,
-        "timestamped_copy": timestamped_path,
-        "config_snapshot": _config_snapshot(),
+        "run_id":                    run_timestamp,
+        "timestamp_utc":             run_start.isoformat(),
+        "llm_provider":              provider,
+        "llm_model":                 model,
+        "tier_filter":               target_tier,
+        "total_controls_processed":  len(results),
+        "document_hashes":           doc_hashes,
+        "regulation_hashes":         reg_hashes,
+        "results_file":              output_json,
+        "config_snapshot":           _config_snapshot(),
     }
-    manifest_path = CONFIG['paths'].get('run_manifest_json', str(PROJECT_ROOT / "outputs" / "run_manifest.json"))
+    manifest_path = os.path.join(run_dir, "run_manifest.json")
     try:
         with open(manifest_path, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=4, ensure_ascii=False)
@@ -168,10 +149,9 @@ def main():
     except Exception as e:
         print(f"Warning: Could not save run manifest: {e}")
 
-    # --- Flagged for human review ---
+    # --- Save flagged_for_review.json ---
     flag_score_threshold = CONFIG.get('audit_trail', {}).get('flag_score_threshold', 6)
     confidence_threshold = float(CONFIG.get('validation', {}).get('confidence_threshold', 60.0))
-
     flagged = []
     for r in results:
         reasons = []
@@ -190,26 +170,33 @@ def main():
             reasons.append("Cross-LLM critique detected potential hallucination")
 
         if reasons:
-            flagged_entry = {
-                "control_reference": r.get('Control Reference', 'Unknown'),
-                "compliance_verdict": verdict,
-                "validation_score": score,
-                "confidence_score": confidence,
+            flagged.append({
+                "control_reference":    r.get('Control Reference', 'Unknown'),
+                "compliance_verdict":   verdict,
+                "validation_score":     score,
+                "confidence_score":     confidence,
                 "cross_llm_hallucinated": cross_hallucinated,
-                "cross_llm_concerns": r.get('Cross_LLM_Concerns', ''),
-                "flag_reasons": reasons,
-            }
-            flagged.append(flagged_entry)
+                "cross_llm_concerns":   r.get('Cross_LLM_Concerns', ''),
+                "flag_reasons":         reasons,
+            })
 
-    flagged_path = CONFIG['paths'].get(
-        'flagged_review_json', str(PROJECT_ROOT / "outputs" / "flagged_for_review.json")
-    )
+    flagged_path = os.path.join(run_dir, "flagged_for_review.json")
     try:
         with open(flagged_path, 'w', encoding='utf-8') as f:
             json.dump(flagged, f, indent=4, ensure_ascii=False)
         print(f"Flagged {len(flagged)}/{len(results)} controls for human review → {flagged_path}")
     except Exception as e:
         print(f"Warning: Could not save flagged review file: {e}")
+
+    # --- Run validation and save val_metrics CSV into the same run folder ---
+    print("\nStarting validation step...")
+    try:
+        from validate_audit import validate_audit
+        validate_audit(run_folder=run_dir)
+    except Exception as e:
+        print(f"Warning: Validation step failed: {e}")
+
+    print(f"\nAll outputs saved to: {run_dir}")
 
 
 if __name__ == "__main__":

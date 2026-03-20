@@ -35,27 +35,33 @@ rag_settings:
 
 paths:
   input_csv: "inputs/rcm_input.csv"
-  output_json: "outputs/audit_results.json"
+  output_json: "outputs/audit_results.json"   # fallback for notebook; run_audit.py uses run folder
   documents_folder: "documents/"
   expert_answers_csv: "inputs/rcm_expert_answer.csv"
-  validation_report_csv: "outputs/val_metrics.csv"
-  flagged_review_json: "outputs/flagged_for_review.json"
-  run_manifest_json: "outputs/run_manifest.json"
+  validation_report_csv: "outputs/val_metrics.csv"  # fallback for notebook; run_audit.py uses run folder
 
 judge_llm:
-  # Independent LLM used for cross-LLM hallucination checks and LLM-as-a-judge scoring.
-  # Fallback chain (first available wins):
-  #   1. Groq         — free, fast; requires GROQ_API_KEY. Limit: 100k tokens/day free tier.
-  #   2. Together AI  — free model available; requires TOGETHER_API_KEY (console.together.ai).
-  #   3. Ollama       — local, zero cost, zero rate limits; requires Ollama running locally.
-  #   4. Secondary provider (Google/OpenAI, whichever is not primary)
-  #   5. Primary LLM  — last resort, least independent
-  model: "llama-3.3-70b-versatile"
-  # Together AI free model (no API cost, ~same quality as Groq/Llama):
-  together_model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-  # Ollama local model — install Ollama from https://ollama.com, then run: ollama pull llama3.2
-  # Good lightweight options: llama3.2, mistral, qwen2.5:7b
-  ollama_model: "llama3.1:8b"
+  # Which provider to use as the independent judge LLM.
+  # Options:
+  #   "auto"     — try providers in auto_order below; first available wins
+  #   "ollama"   — force local Ollama (must be running); unlimited tokens, fully private
+  #   "groq"     — force Groq cloud (needs GROQ_API_KEY); fast, ~100k tokens/day free
+  #   "together" — force Together AI (needs TOGETHER_API_KEY); free model available
+  #   "openai"   — use the primary OpenAI model as judge (least independent)
+  #   "google"   — use the primary Google/Gemini model as judge (least independent)
+  provider: "auto"
+
+  # Priority order when provider is "auto". First available provider wins.
+  # Reorder this list to change preference without touching the code.
+  auto_order:
+    - "ollama"
+    - "groq"
+    - "together"
+
+  # Model names per provider:
+  model: "llama-3.3-70b-versatile"                        # Groq
+  together_model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"  # Together AI
+  ollama_model: "llama3.1:8b"                              # Ollama local model
   ollama_base_url: "http://localhost:11434"
 
 validation:

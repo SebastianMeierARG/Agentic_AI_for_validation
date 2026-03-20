@@ -143,64 +143,119 @@ def _try_ollama() -> object:
     return None
 
 
+# Maps provider name (as written in config.yaml) to its _try_* function.
+_PROVIDER_FN_MAP = {
+    "ollama":   _try_ollama,
+    "groq":     _try_groq,
+    "together": _try_together,
+}
+
+
+def _build_judge_chain(skip: list = None) -> list:
+    """
+    Returns an ordered list of (fn, name) tuples for the judge LLM resolution loop.
+
+    Behaviour driven by config.yaml judge_llm section:
+      - provider: "groq"    → use only Groq; error if unavailable
+      - provider: "ollama"  → use only Ollama; error if unavailable
+      - provider: "together"→ use only Together AI; error if unavailable
+      - provider: "openai"  → use the primary OpenAI model directly
+      - provider: "google"  → use the primary Google/Gemini model directly
+      - provider: "auto"    → iterate auto_order list (default: ollama, groq, together)
+
+    The optional `skip` list removes providers from the chain (used by the
+    fallback function when a provider has been exhausted mid-run).
+    """
+    skip = {s.lower() for s in (skip or [])}
+    judge_cfg = CONFIG.get('judge_llm', {})
+    provider  = judge_cfg.get('provider', 'auto').lower().strip()
+
+    if provider != 'auto':
+        if provider in skip:
+            # Requested provider was exhausted — fall through to auto_order
+            pass
+        elif provider in _PROVIDER_FN_MAP:
+            return [(_PROVIDER_FN_MAP[provider], provider)]
+        elif provider in ('openai', 'google'):
+            return []  # signals caller to use secondary/primary path
+        else:
+            print(f"Warning: Unknown judge_llm.provider '{provider}' in config.yaml. Using auto.")
+
+    # auto (or unknown/skipped explicit provider) — use auto_order
+    auto_order = judge_cfg.get('auto_order', ['ollama', 'groq', 'together'])
+    return [
+        (_PROVIDER_FN_MAP[name], name)
+        for name in auto_order
+        if name in _PROVIDER_FN_MAP and name not in skip
+    ]
+
+
+def _resolve_secondary_or_primary(label_prefix: str = "") -> object:
+    """Shared last-resort path: secondary provider → primary LLM."""
+    global _judge_llm_label
+    secondary = get_secondary_llm()
+    if secondary:
+        primary_provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
+        sec_provider = 'google' if primary_provider == 'openai' else 'openai'
+        sec_model = CONFIG.get('llm_settings', {}).get(sec_provider, {}).get('model', sec_provider)
+        _judge_llm_label = f"{sec_provider}_{sec_model}"
+        print(f"Judge LLM{label_prefix}: falling back to secondary provider ({sec_provider}).")
+        return secondary
+
+    print(f"Warning: No independent judge LLM available{label_prefix}. Using primary LLM.")
+    primary_provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
+    model = CONFIG.get('llm_settings', {}).get(primary_provider, {}).get('model', primary_provider)
+    _judge_llm_label = f"{primary_provider}_{model}_primary"
+    return get_llm()
+
+
 def get_judge_llm():
     """
     Returns the LLM used for all independent judging tasks.
 
-    Fallback chain (first available wins):
-      1. Ollama       — local, zero cost/rate-limits; needs Ollama running locally
-      2. Groq         — free cloud, fast; needs GROQ_API_KEY; 100k tokens/day free tier
-      3. Together AI  — free cloud model; needs TOGETHER_API_KEY (console.together.ai)
-      4. Secondary provider (Google/OpenAI, whichever is not the primary)
-      5. Primary LLM  — last resort; least independent
+    Provider is controlled by config.yaml:
+      judge_llm:
+        provider: "auto"                        # or "ollama", "groq", "together", "openai", "google"
+        auto_order: ["ollama", "groq", "together"]  # priority when provider is "auto"
     """
-    for fn, label in [(_try_ollama, "Ollama"), (_try_groq, "Groq"), (_try_together, "Together AI")]:
+    judge_cfg = CONFIG.get('judge_llm', {})
+    provider  = judge_cfg.get('provider', 'auto').lower().strip()
+
+    # Explicit openai/google → skip straight to secondary/primary path
+    if provider in ('openai', 'google'):
+        return _resolve_secondary_or_primary()
+
+    chain = _build_judge_chain()
+    for fn, name in chain:
+        llm = fn()
+        if llm:
+            return llm
+        if provider != 'auto':
+            # Explicit provider failed — surface a clear error instead of silently falling back
+            print(f"Error: Requested judge provider '{provider}' is unavailable. "
+                  f"Check your setup or set judge_llm.provider to 'auto' in config.yaml.")
+            break
+
+    return _resolve_secondary_or_primary()
+
+
+def get_fallback_judge_llm(skip: list = None):
+    """
+    Returns a judge LLM skipping any exhausted providers.
+    Called automatically mid-run when a provider hits its quota or rate limit.
+
+    `skip` is a list of provider names to exclude, e.g. ['groq'].
+    When not provided, falls back to auto_order minus Groq (historical default).
+    """
+    if skip is None:
+        skip = ['groq']
+    chain = _build_judge_chain(skip=skip)
+    for fn, _ in chain:
         llm = fn()
         if llm:
             return llm
 
-    secondary = get_secondary_llm()
-    if secondary:
-        global _judge_llm_label
-        provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
-        secondary_provider = 'google' if provider == 'openai' else 'openai'
-        sec_model = CONFIG.get('llm_settings', {}).get(secondary_provider, {}).get('model', secondary_provider)
-        _judge_llm_label = f"{secondary_provider}_{sec_model}"
-        print("Judge LLM: falling back to secondary provider (Google/OpenAI).")
-        return secondary
-
-    print("Warning: No independent judge LLM available. Using primary LLM for judging.")
-    provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
-    model = CONFIG.get('llm_settings', {}).get(provider, {}).get('model', provider)
-    _judge_llm_label = f"{provider}_{model}_primary"
-    return get_llm()
-
-
-def get_fallback_judge_llm():
-    """
-    Returns a judge LLM that explicitly skips Groq (used when Groq TPD quota is exhausted).
-    Fallback chain: Ollama → Together AI → secondary provider → primary LLM.
-    """
-    for fn in [_try_ollama, _try_together]:
-        llm = fn()
-        if llm:
-            return llm
-
-    secondary = get_secondary_llm()
-    if secondary:
-        global _judge_llm_label
-        provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
-        secondary_provider = 'google' if provider == 'openai' else 'openai'
-        sec_model = CONFIG.get('llm_settings', {}).get(secondary_provider, {}).get('model', secondary_provider)
-        _judge_llm_label = f"{secondary_provider}_{sec_model}"
-        print("Judge LLM fallback: switching to secondary provider (Google/OpenAI).")
-        return secondary
-
-    print("Warning: No secondary provider available. Using primary LLM as judge fallback.")
-    provider = CONFIG.get('llm_settings', {}).get('provider', 'openai')
-    model = CONFIG.get('llm_settings', {}).get(provider, {}).get('model', provider)
-    _judge_llm_label = f"{provider}_{model}_primary"
-    return get_llm()
+    return _resolve_secondary_or_primary(label_prefix=" fallback")
 
 
 def get_secondary_llm():
