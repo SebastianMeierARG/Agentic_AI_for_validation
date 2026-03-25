@@ -50,9 +50,8 @@ judge_llm:
   #   "openai"   — use the primary OpenAI model as judge (least independent)
   #   "google"   — use the primary Google/Gemini model as judge (least independent)
   provider: "auto"
-
   # Priority order when provider is "auto". First available provider wins.
-  # Reorder this list to change preference without touching the code.
+  # Reorder this list to change preference.
   auto_order:
     - "groq"
     - "ollama"

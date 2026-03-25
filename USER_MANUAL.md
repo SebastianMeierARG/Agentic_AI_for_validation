@@ -40,7 +40,7 @@ This tool does that reading and drafting work automatically. Given your internal
 
 ### What IFRS 9 / ECL means in plain terms
 
-Think of ECL as the bank's best estimate of "how much of what we lent out we probably won't get back." IFRS 9 requires this estimate to be calculated using a specific methodology, approved by senior governance, documented in formal policies, and regularly validated. The audit checks whether all of that is actually happening and properly evidenced.
+The ECL can be interpret as the bank's best estimate of "how much of what we lent out we probably won't get back." IFRS 9 requires this estimate to be calculated using a specific methodology, approved by senior governance, documented in formal policies, and regularly validated. The audit checks whether all of that is actually happening and properly evidenced.
 
 ### What the output looks like
 
@@ -680,4 +680,3 @@ The tool tries these providers in order, using the first one available:
 
 ---
 
-*For technical details on the system architecture, see `CLAUDE.md`. For a history of improvements and design decisions, see `IMPROVEMENTS_EXPLAINED.md`.*
