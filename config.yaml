@@ -21,7 +21,7 @@ rag_settings:
   retrieval_score_threshold: 1.8
   # Set to false to skip the regulations index entirely (saves ~1500 tokens/row).
   # When false, the LLM relies on its training knowledge for regulatory context.
-  use_regulations: true
+  use_regulations: false
   # Chunks from client docs guaranteed in context regardless of reranking.
   # Prevents regulation docs from crowding out client policy pages.
   client_top_k: 6
@@ -54,8 +54,8 @@ judge_llm:
   # Priority order when provider is "auto". First available provider wins.
   # Reorder this list to change preference without touching the code.
   auto_order:
-    - "ollama"
     - "groq"
+    - "ollama"
     - "together"
 
   # Model names per provider:
@@ -65,7 +65,7 @@ judge_llm:
   ollama_base_url: "http://localhost:11434"
 
 validation:
-  enable_self_critique: true
+  enable_self_critique: false
   # Use the secondary LLM provider to independently grade the answer.
   # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
   enable_cross_llm_critique: true

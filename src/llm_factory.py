@@ -267,11 +267,9 @@ def get_secondary_llm():
     provider = CONFIG.get('llm_settings', {}).get('provider', 'openai').lower()
 
     if provider == 'openai':
-        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            return None
-        model_name = CONFIG.get('llm_settings', {}).get('google', {}).get('model', 'gemini-1.5-flash')
-        return ChatGoogleGenerativeAI(model=model_name, temperature=0.0, google_api_key=api_key, max_retries=3)
+        # Disabled Gemini as a fallback judge per user request
+        print("Secondary LLM (Google Gemini) is disabled for judging.")
+        return None
     else:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:

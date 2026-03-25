@@ -60,11 +60,16 @@ class RcmAuditor:
             try:
                 return llm.invoke(messages)
             except Exception as e:
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                err_str = str(e).lower()
+                retryable_errors = [
+                    "429", "resource_exhausted", "connection error",
+                    "timeout", "502", "503", "504", "connection reset"
+                ]
+                if any(err in err_str for err in retryable_errors):
                     if attempt < max_retries - 1:
                         wait_time = base_delay * (2 ** attempt)
                         print(
-                            f"Rate limit hit ({label}). Waiting {wait_time}s "
+                            f"Transient error hit ({label}): {e}. Waiting {wait_time}s "
                             f"(retry {attempt + 1}/{max_retries})..."
                         )
                         time.sleep(wait_time)
@@ -322,7 +327,9 @@ class RcmAuditor:
         critique_score = validation_result.get('score', 0)
 
         # --- Cross-LLM hallucination critique ---
-        cross_result = self._cross_llm_critique(context_text, final_answer)
+        cross_result = None
+        if CONFIG.get('validation', {}).get('enable_cross_llm_critique', True):
+            cross_result = self._cross_llm_critique(context_text, final_answer)
 
         # --- Confidence score (0-100) ---
         # Blend self-critique score (normalised to 0-100) with cross-LLM confidence.

@@ -196,8 +196,10 @@ def main():
     except Exception as e:
         print(f"Warning: Validation step failed: {e}")
 
-    print(f"\nAll outputs saved to: {run_dir}")
-
+    run_end = datetime.now(timezone.utc)
+    duration = run_end - run_start
+    print(f"\nAudit process completed in {duration}.")
+    print(f"All outputs saved to: {run_dir}")
 
 if __name__ == "__main__":
     main()
