@@ -21,7 +21,7 @@ rag_settings:
   retrieval_score_threshold: 1.8
   # Set to false to skip the regulations index entirely (saves ~1500 tokens/row).
   # When false, the LLM relies on its training knowledge for regulatory context.
-  use_regulations: true
+  use_regulations: false
   # Chunks from client docs guaranteed in context regardless of reranking.
   # Prevents regulation docs from crowding out client policy pages.
   client_top_k: 6
@@ -29,6 +29,10 @@ rag_settings:
   regs_top_k: 2
   # Final chunk count passed to the LLM after reranking (client + regs combined).
   rerank_top_k: 7
+  # Decompose compound audit controls into 2-3 focused sub-queries before retrieval.
+  # Improves evidence coverage for controls that ask multiple distinct questions.
+  # Adds one extra LLM call per row. Recommended for Tier 1 complex controls.
+  use_query_decomposition: false
   # Multilingual MS MARCO reranker — handles Spanish, English, and mixed pairs.
   # Downloads ~270MB on first use. Substantially better than stsb-roberta-base for Spanish.
   reranker_model: "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
@@ -67,14 +71,27 @@ validation:
   enable_self_critique: true
   # Use the secondary LLM provider to independently grade the answer.
   # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
-  enable_cross_llm_critique: true
+  enable_cross_llm_critique: false
   # Confidence score below this value (0-100) will flag the control for human review.
   confidence_threshold: 60.0
+  # --- Self-correction settings ---
+  # If self-critique score is below this threshold, the answer is revised using
+  # the critique feedback. Only active when enable_self_critique: true.
+  self_critique_retry_threshold: 6
+  # Maximum number of revision attempts before accepting the best answer found.
+  max_revision_attempts: 2
+  # Which LLM runs the self-critique:
+  #   "primary" — same model that wrote the answer (faster, no extra provider needed)
+  #   "judge"   — independent judge chain (Ollama → Groq → Together, more objective)
+  critique_llm: "primary"
 
 audit_trail:
   enabled: true
   # Intrinsic critique score (0-10) below this will flag the control for human review.
   flag_score_threshold: 6
+  # Set to false to skip the validate_audit step after the audit run.
+  run_validation: false
+
 
 filtering:
   tier: '1' # Can be 'all', or a specific tier like 1, 2, or 3

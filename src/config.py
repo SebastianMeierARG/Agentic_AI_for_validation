@@ -5,7 +5,10 @@ from pathlib import Path
 
 # Project root: parent of src/ (where this file resides)
 PROJECT_ROOT = Path(__file__).parent.parent
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+
+# Allow an external script to override the config file path via env var
+_env_config = os.environ.get('AUDIT_CONFIG_PATH')
+CONFIG_PATH = Path(_env_config) if _env_config else PROJECT_ROOT / "config.yaml"
 
 def load_config():
     load_dotenv(PROJECT_ROOT / ".env")

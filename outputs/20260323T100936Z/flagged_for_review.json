@@ -1,0 +1,177 @@
+[
+    {
+        "control_reference": 2.1,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 8,
+        "confidence_score": 65.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "representativeness testing has been performed; the data used is relevant; the chosen MEVs align with the portfolio characteristics",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 3.1,
+        "compliance_verdict": "Compliant",
+        "validation_score": 8,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "individual treatment is applied to operations that are new and lack a payment history",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 3.2,
+        "compliance_verdict": "Compliant",
+        "validation_score": 8,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "the classification is updated monthly based on the payment behavior of all active operations",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 3.6,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 8,
+        "confidence_score": 65.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "the segmentation is not quantitatively backed; there is no evidence of a documented methodology that includes quantitative backing for the segmentation logic",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 4.1,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 7,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "the definition of default is not documented in the provided context; there is no explicit mention of a documented definition of default that aligns with regulatory requirements",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 5.1,
+        "compliance_verdict": "Compliant",
+        "validation_score": 8,
+        "confidence_score": 67.5,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "There is a formal policy for risk contagion among exposures of the same client or economic group.; The methodology of 'contagio de stage' allows for the classification of a client's operations to be influenced by the classification of other operations within the same client.",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 5.3,
+        "compliance_verdict": "Partial",
+        "validation_score": 7,
+        "confidence_score": 35.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "methodology for 'stage contagion'; reclassification of operations based on the classification of other operations of the same client",
+        "flag_reasons": [
+            "Confidence score 35.0 < threshold 60.0",
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 6.2,
+        "compliance_verdict": "Partial",
+        "validation_score": 7,
+        "confidence_score": 55.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "the PD model is designed as Point-in-Time (PiT) as indicated in the context; the estimations corresponding to Stage 1 must follow a point-in-time approach",
+        "flag_reasons": [
+            "Confidence score 55.0 < threshold 60.0",
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 7.1,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 7,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "The segmentation used for LGD is not adequately defined and supported by empirical or business analysis.; The context indicates that the LGD is calculated based on the behavior of credits in default segmented into 'Cartera Individuos' and 'Cartera Empresas'.",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 7.5,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 8,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "the assumption of a 100% LGD after a certain time or condition is not explicitly documented or justified",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 8.2,
+        "compliance_verdict": "Non-Compliant",
+        "validation_score": 7,
+        "confidence_score": 60.0,
+        "cross_llm_hallucinated": true,
+        "cross_llm_concerns": "There are references to CCFs for revolving products, such as the application of different CCF percentages based on the percentage of utilization of the margin (1% for less than 25%, 10% for 25%-50%, 20% for 50%-75%, and 40% for 75% or more) [Page 13 of 'Política de Previsionamiento_modificada sep 2025.pdf']",
+        "flag_reasons": [
+            "Cross-LLM critique detected potential hallucination"
+        ]
+    },
+    {
+        "control_reference": 11.1,
+        "compliance_verdict": "Insufficient Info",
+        "validation_score": 0,
+        "confidence_score": 0.0,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6",
+            "Confidence score 0.0 < threshold 60.0",
+            "Verdict is Insufficient Info"
+        ]
+    },
+    {
+        "control_reference": 11.2,
+        "compliance_verdict": "Insufficient Info",
+        "validation_score": 0,
+        "confidence_score": 0.0,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6",
+            "Confidence score 0.0 < threshold 60.0",
+            "Verdict is Insufficient Info"
+        ]
+    },
+    {
+        "control_reference": 11.3,
+        "compliance_verdict": "Insufficient Info",
+        "validation_score": 0,
+        "confidence_score": 0.0,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6",
+            "Confidence score 0.0 < threshold 60.0",
+            "Verdict is Insufficient Info"
+        ]
+    },
+    {
+        "control_reference": 11.5,
+        "compliance_verdict": "Insufficient Info",
+        "validation_score": 0,
+        "confidence_score": 0.0,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6",
+            "Confidence score 0.0 < threshold 60.0",
+            "Verdict is Insufficient Info"
+        ]
+    }
+]

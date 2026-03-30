@@ -13,7 +13,9 @@ import time
 class RagEngine:
     def __init__(self):
         self.documents_path = CONFIG['paths']['documents_folder']
-        self.index_path_client = str(PROJECT_ROOT / "faiss_index_client")
+        self.index_path_client = CONFIG['paths'].get(
+            'faiss_index_client', str(PROJECT_ROOT / "faiss_index_client")
+        )
         self.vector_store = None
 
         # Phase 2: Regulations Paths
@@ -189,7 +191,7 @@ class RagEngine:
             filtered = sorted(results_with_scores, key=lambda x: x[1])
         return filtered
 
-    def retrieve(self, query, k=15):
+    def retrieve(self, query, k=15, threshold_override=None, client_top_k_override=None):
         """
         Retrieve relevant document chunks using HyDE + source-balanced retrieval
         + score threshold + multilingual CrossEncoder reranking.
@@ -221,8 +223,8 @@ class RagEngine:
         print(f"HyDE Search Query: {search_query[:80]}...")
 
         rag_cfg = CONFIG.get('rag_settings', {})
-        threshold = rag_cfg.get('retrieval_score_threshold', 1.8)
-        client_top_k = rag_cfg.get('client_top_k', 8)
+        threshold = threshold_override if threshold_override is not None else rag_cfg.get('retrieval_score_threshold', 1.8)
+        client_top_k = client_top_k_override if client_top_k_override is not None else rag_cfg.get('client_top_k', 8)
         regs_top_k = rag_cfg.get('regs_top_k', 4)
         rerank_top_k = rag_cfg.get('rerank_top_k', 10)
 

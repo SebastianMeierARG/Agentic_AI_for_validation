@@ -2,6 +2,7 @@ import os
 import json
 import time
 import hashlib
+import argparse
 from datetime import datetime, timezone
 from config import CONFIG, PROJECT_ROOT
 from rcm_engine import RcmAuditor
@@ -43,16 +44,46 @@ def _hash_documents(folder: str) -> dict:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-validation", dest="run_validation", action="store_false",
+                        help="Skip the validate_audit step after the audit run.")
+    parser.add_argument("--resume", metavar="RUN_DIR", default=None,
+                        help="Resume an interrupted run from the given output folder.")
+    parser.set_defaults(run_validation=None)
+    args = parser.parse_args()
+    # CLI flag takes priority; fall back to config.yaml
+    if args.run_validation is None:
+        RUN_VALIDATION = bool(CONFIG.get('audit_trail', {}).get('run_validation', True))
+    else:
+        RUN_VALIDATION = args.run_validation
+
     print("Starting Audit Process...")
 
-    run_start = datetime.now(timezone.utc)
-    run_timestamp = run_start.strftime("%Y%m%dT%H%M%SZ")
-    print(f"Run ID: {run_timestamp}")
-
-    # Create per-run output folder
-    run_dir = os.path.join(PROJECT_ROOT, "outputs", run_timestamp)
-    os.makedirs(run_dir, exist_ok=True)
-    print(f"Output folder: {run_dir}")
+    # --- Run folder and checkpoint setup ---
+    if args.resume:
+        run_dir = os.path.abspath(args.resume)
+        checkpoint_path = os.path.join(run_dir, "checkpoint.json")
+        if not os.path.isdir(run_dir):
+            print(f"Error: Resume folder not found: {run_dir}")
+            return
+        if not os.path.exists(checkpoint_path):
+            print(f"Error: No checkpoint.json found in {run_dir}. Cannot resume.")
+            return
+        run_timestamp = os.path.basename(run_dir)
+        run_start = datetime.now(timezone.utc)
+        with open(checkpoint_path, 'r', encoding='utf-8') as f:
+            results = json.load(f)
+        done_refs = {str(r.get('Control Reference', '')) for r in results}
+        print(f"Resuming run: {run_timestamp}  ({len(done_refs)} rows already done)")
+    else:
+        run_start = datetime.now(timezone.utc)
+        run_timestamp = run_start.strftime("%Y%m%dT%H%M%SZ")
+        print(f"Run ID: {run_timestamp}")
+        run_dir = os.path.join(PROJECT_ROOT, "outputs", run_timestamp)
+        os.makedirs(run_dir, exist_ok=True)
+        results = []
+        done_refs = set()
+        print(f"Output folder: {run_dir}")
 
     # Hash source documents for audit trail
     docs_folder = CONFIG['paths']['documents_folder']
@@ -99,8 +130,12 @@ def main():
     total_rows = len(df)
     print(f"Processing {total_rows} rows...")
 
-    results = []
+    checkpoint_path = os.path.join(run_dir, "checkpoint.json")
     for i, (idx, row) in enumerate(df.iterrows()):
+        control_ref = str(row.get('Control Reference', f'row_{idx}'))
+        if control_ref in done_refs:
+            print(f"Skipping row {i + 1}/{total_rows} ({control_ref} — already done).")
+            continue
         print(f"Processing row {i + 1}/{total_rows} (CSV row {idx + 2})...")
         try:
             res = auditor.process_row(row.to_dict())
@@ -113,6 +148,12 @@ def main():
             err_row['Validation_Score'] = 0
             err_row['Confidence_Score'] = 0.0
             results.append(err_row)
+        # Save checkpoint after every row so the run is resumable
+        try:
+            with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f"Warning: Could not save checkpoint: {e}")
         time.sleep(1)
 
     # --- Save audit_results.json ---
@@ -121,6 +162,9 @@ def main():
         with open(output_json, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=4, ensure_ascii=False)
         print(f"Audit results saved to {output_json}")
+        # Remove checkpoint now that the final file is saved
+        if os.path.exists(checkpoint_path):
+            os.remove(checkpoint_path)
     except Exception as e:
         print(f"Error saving results: {e}")
         return
@@ -189,12 +233,15 @@ def main():
         print(f"Warning: Could not save flagged review file: {e}")
 
     # --- Run validation and save val_metrics CSV into the same run folder ---
-    print("\nStarting validation step...")
-    try:
-        from validate_audit import validate_audit
-        validate_audit(run_folder=run_dir)
-    except Exception as e:
-        print(f"Warning: Validation step failed: {e}")
+    if RUN_VALIDATION:
+        print("\nStarting validation step...")
+        try:
+            from validate_audit import validate_audit
+            validate_audit(run_folder=run_dir)
+        except Exception as e:
+            print(f"Warning: Validation step failed: {e}")
+    else:
+        print("\nValidation step skipped (--no-validation flag set).")
 
     print(f"\nAll outputs saved to: {run_dir}")
 

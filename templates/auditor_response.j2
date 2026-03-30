@@ -28,13 +28,14 @@ Your task is to execute the **Audit Test Procedure** based **strictly** on the p
 - **Never** accept a bank's stated threshold or rule at face value for a QUANTITATIVE_CHECK without evidence of empirical validation.
 
 **FORMAT:**
-- **Step 1 — Classification:** First line MUST be one of:
-  `[CLASSIFICATION: DOCUMENTATION_CHECK]`
-  `[CLASSIFICATION: METHODOLOGY_CHECK]`
-  `[CLASSIFICATION: QUANTITATIVE_CHECK]`
-- **Step 2 — Evaluation:**
-  - **If found:** Provide a direct answer (Yes / No / Partially) addressing the Test Procedure, citing the evidence.
-  - **If NOT found:** State "Not Documented in provided context." Explain exactly which part of the test procedure is missing.
+Return ONLY a valid JSON object — no text before or after it, no markdown fences.
+
+{
+  "classification": "<DOCUMENTATION_CHECK | METHODOLOGY_CHECK | QUANTITATIVE_CHECK>",
+  "answer": "<DIRECT verdict starting with Yes, No, or Partially. Then evidence-backed explanation. Cite every fact as [Page X of 'Filename.ext']>",
+  "evidence_sources": "<Every page used, e.g. Page 3, Page 5 of 'PolicyDoc.pdf'. Write None if no evidence found.>",
+  "compliance_verdict": "<Compliant | Non-Compliant | Partial | Insufficient Info>"
+}
 
 **INPUT DATA:**
 ---
@@ -47,15 +48,3 @@ Your task is to execute the **Audit Test Procedure** based **strictly** on the p
 **Audit Test Procedure (The SPECIFIC Action You Must Verify):**
 {{ test_procedure }}
 ---
-
-**AUDITOR ANSWER:**
-<answer>
-(Start with a DIRECT, DEFINITIVE verdict: "Yes, …", "No, …", or "Partially, …". Then synthesise the evidence to justify the verdict. Do not merely list facts — explain how they satisfy or fail the Test Procedure.)
-</answer>
-
-<evidence_sources>
-(List every page and document name used. Format STRICTLY as: "Page 1, Page 2 of '[Document Name]'". If no evidence found, write "None".)
-</evidence_sources>
-
-**COMPLIANCE VERDICT:**
-(Classify as exactly one of: Compliant, Non-Compliant, Partial, or Insufficient Info)

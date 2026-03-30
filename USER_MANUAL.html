@@ -89,22 +89,25 @@
 <body>
   <div class="container">
     <h1>User Manual — IFRS 9 Agentic Audit Validation Tool</h1>
-<p><strong>Version:</strong> Current (March 2026)
+<p><strong>Version:</strong> March 2026
 <strong>Audience:</strong> Audit professionals, credit risk analysts, model validators</p>
 <hr />
 <h2>Table of Contents</h2>
 <ol>
 <li><a href="#1-what-this-tool-does">What This Tool Does</a></li>
-<li><a href="#2-before-you-start--know-your-resources">Before You Start — Know Your Resources</a></li>
-<li><a href="#3-validation-strategy-a--cross-llm-as-judge">Validation Strategy A — Cross-LLM as Judge (Recommended for Regulatory Use)</a></li>
-<li><a href="#4-validation-strategy-b--self-critique-only">Validation Strategy B — Self-Critique Only (Faster, Less Compliant)</a></li>
-<li><a href="#5-step-by-step-running-a-full-audit">Step-by-Step: Running a Full Audit</a></li>
-<li><a href="#6-understanding-your-results">Understanding Your Results</a></li>
-<li><a href="#7-the-output-folder--what-each-file-means">The Output Folder — What Each File Means</a></li>
-<li><a href="#8-configuring-the-tool">Configuring the Tool</a></li>
-<li><a href="#9-using-the-interactive-notebook-for-spot-checks">Using the Interactive Notebook for Spot Checks</a></li>
-<li><a href="#10-troubleshooting">Troubleshooting</a></li>
-<li><a href="#11-quick-reference-card">Quick Reference Card</a></li>
+<li><a href="#2-architecture-overview">Architecture Overview</a></li>
+<li><a href="#3-before-you-start--know-your-resources">Before You Start — Know Your Resources</a></li>
+<li><a href="#4-validation-strategy-a--cross-llm-as-judge">Validation Strategy A — Cross-LLM as Judge (Recommended for Regulatory Use)</a></li>
+<li><a href="#5-validation-strategy-b--self-critique-only">Validation Strategy B — Self-Critique Only (Faster, Less Compliant)</a></li>
+<li><a href="#6-step-by-step-running-a-full-audit">Step-by-Step: Running a Full Audit</a></li>
+<li><a href="#7-understanding-your-results">Understanding Your Results</a></li>
+<li><a href="#8-the-output-folder--what-each-file-means">The Output Folder — What Each File Means</a></li>
+<li><a href="#9-configuring-the-tool">Configuring the Tool</a></li>
+<li><a href="#10-using-the-interactive-notebook-for-spot-checks">Using the Interactive Notebook for Spot Checks</a></li>
+<li><a href="#11-troubleshooting">Troubleshooting</a></li>
+<li><a href="#12-quick-reference-card">Quick Reference Card</a></li>
+<li><a href="#annex-a--architecture-diagram">Annex A — Architecture Diagram</a></li>
+<li><a href="#annex-b--technical-module-reference">Annex B — Technical Module Reference</a></li>
 </ol>
 <hr />
 <h2>1. What This Tool Does</h2>
@@ -117,28 +120,155 @@
 <li>For each control in the checklist, retrieves the most relevant passages</li>
 <li>Drafts a structured answer — including which document page supports each claim</li>
 <li>Classifies the control as <strong>Compliant</strong>, <strong>Non-Compliant</strong>, <strong>Partial</strong>, or <strong>Insufficient Info</strong></li>
+<li>Verifies that every page citation in the answer is grounded in the retrieved context</li>
+<li>If the answer quality is low, automatically revises it using the critique as feedback</li>
 <li>Has a second, independent AI model check every claim for accuracy</li>
 <li>Flags any control where confidence is low, for a human auditor to review</li>
 </ol>
 <h3>What IFRS 9 / ECL means in plain terms</h3>
-<p>The ECL can be interpret as the bank's best estimate of &quot;how much of what we lent out we probably won't get back.&quot; IFRS 9 requires this estimate to be calculated using a specific methodology, approved by senior governance, documented in formal policies, and regularly validated. The audit checks whether all of that is actually happening and properly evidenced.</p>
+<p>The ECL can be interpreted as the bank's best estimate of &quot;how much of what we lent out we probably won't get back.&quot; IFRS 9 requires this estimate to be calculated using a specific methodology, approved by senior governance, documented in formal policies, and regularly validated. The audit checks whether all of that is actually happening and properly evidenced.</p>
 <h3>What the output looks like</h3>
 <p>For each control on your checklist, the tool produces:</p>
 <ul>
+<li><strong>Classification</strong> — DOCUMENTATION_CHECK / METHODOLOGY_CHECK / QUANTITATIVE_CHECK</li>
 <li><strong>AI Answer</strong> — A structured written response citing specific pages from your documents</li>
 <li><strong>Compliance Verdict</strong> — Compliant / Non-Compliant / Partial / Insufficient Info</li>
-<li><strong>Confidence Score</strong> — 0 to 100; below 60 means the tool is uncertain and flags the control for human review</li>
+<li><strong>Confidence Score</strong> — 0 to 100; decomposed into three sub-scores (retrieval, answer, citation)</li>
 <li><strong>Validation Score</strong> — 0 to 10; how well the answer is supported by the documents</li>
+<li><strong>Citation Confidence</strong> — % of cited page references verified against the retrieved context</li>
+<li><strong>Revision Count</strong> — how many self-correction cycles were triggered for this control</li>
 <li><strong>Hallucination Flag</strong> — whether the independent AI checker found any claims not backed by documents</li>
 </ul>
-<p>At the end you also receive a validation report comparing the AI's answers to expert reference answers, scored on accuracy, stability, and consistency.</p>
 <hr />
-<h2>2. Before You Start — Know Your Resources</h2>
-<p>Answer these three questions before you choose how to run the tool. Your answers will determine which approach gives you the best result for your situation.</p>
+<h2>2. Architecture Overview</h2>
+<p>This chapter explains how the tool works internally, in plain language. Understanding the architecture helps you interpret results, tune settings, and diagnose problems.</p>
+<h3>The two-phase design</h3>
+<p>The tool is split into two sequential phases:</p>
+<ul>
+<li><strong>Phase 1 — Audit Generation:</strong> Reads your documents, retrieves relevant passages, generates structured answers, and validates them through multiple quality layers.</li>
+<li><strong>Phase 2 — Validation:</strong> Compares the AI answers to expert reference answers (if available) and scores them on accuracy, consistency, and hallucination resistance.</li>
+</ul>
+<p>Phase 2 is optional. You can run Phase 1 alone (using <code>--no-validation</code>) and inspect raw results before deciding whether to validate.</p>
+<hr />
+<h3>Phase 1 in depth: how an answer is produced</h3>
+<p>Each row in your audit checklist (<code>rcm_input.csv</code>) goes through the following steps:</p>
+<h4>Step 1 — Query Decomposition (optional)</h4>
+<p>Some audit controls are compound questions bundled into a single sentence — for example: <em>&quot;Is the PD model Point-in-Time, and is this choice justified, and is it linked to expected loss requirements?&quot;</em> That is really three separate retrieval targets.</p>
+<p>When <code>use_query_decomposition: true</code> is set in <code>config.yaml</code>, the tool first asks the primary LLM to split the control into 2–3 focused sub-questions. Each sub-question is then used independently for retrieval. The results are merged and deduplicated before answer generation, giving the model richer, more complete evidence. If decomposition is disabled (the default), a single query is used.</p>
+<h4>Step 2 — HyDE Retrieval</h4>
+<p>Instead of searching the documents using the raw audit question (which is in English), the tool generates a <strong>hypothetical answer</strong> — a paragraph written in the language of your client documents (Spanish, English, etc.) that describes what a compliant policy would look like. This technique is called HyDE (Hypothetical Document Embedding).</p>
+<p>The reason: if your documents are in Spanish and the query is in English, the embedding distance between them is artificially large because the two languages occupy slightly different regions of the vector space. By generating the hypothetical in the document language, the search becomes effectively monolingual, producing much better retrieval.</p>
+<h4>Step 3 — Source-Balanced FAISS Retrieval</h4>
+<p>The hypothetical is embedded and used to search two separate vector stores:</p>
+<ul>
+<li><strong>Client index</strong> (<code>faiss_index_client/</code>) — your PDFs, chunked and indexed per project</li>
+<li><strong>Regulations index</strong> (<code>faiss_index_regs/</code>) — IFRS 9 and EBA guideline PDFs</li>
+</ul>
+<p>Both indices are searched independently with their own caps (<code>client_top_k</code> and <code>regs_top_k</code>). This prevents the regulation documents from crowding out your client policy pages in the final context.</p>
+<p>Chunks with an L2 distance above the threshold (default 1.8) are discarded. If none pass, the filter falls back to the top results to guarantee the model always receives something.</p>
+<h4>Step 4 — Multilingual Reranking</h4>
+<p>The combined pool of retrieved chunks is re-scored using a <strong>CrossEncoder</strong> model (<code>mmarco-mMiniLMv2</code>, multilingual). This model reads each (query, chunk) pair together and assigns a relevance score — much more accurate than embedding distance alone. The top 7 chunks survive and are passed to the answer generation step.</p>
+<h4>Step 5 — Answer Generation</h4>
+<p>The primary LLM (GPT-4o-mini or Gemini) receives the 7 reranked chunks as context and the audit question, and generates a structured JSON response containing:</p>
+<ul>
+<li><code>classification</code> — DOCUMENTATION_CHECK / METHODOLOGY_CHECK / QUANTITATIVE_CHECK</li>
+<li><code>answer</code> — a direct verdict with every fact cited as <code>[Page X of 'Filename']</code></li>
+<li><code>evidence_sources</code> — list of all pages used</li>
+<li><code>compliance_verdict</code> — Compliant / Non-Compliant / Partial / Insufficient Info</li>
+</ul>
+<p>Using JSON output eliminates the fragile text parsing that older versions used. If the model returns malformed JSON, a regex fallback activates automatically.</p>
+<h4>Step 6 — Expanded Retrieval on &quot;Insufficient Info&quot;</h4>
+<p>If the initial answer is <code>Insufficient Info</code>, the tool automatically widens the retrieval net — raising the L2 threshold by 0.4 and increasing <code>client_top_k</code> by 4 — and re-generates the answer with the larger context. This handles cases where relevant evidence exists in the documents but was filtered out by the standard threshold.</p>
+<h4>Step 7 — Self-Critique</h4>
+<p>The answer is scored 0–10 by a critique LLM (either the primary LLM itself or the independent judge chain, depending on the <code>critique_llm</code> setting). The score measures truthfulness and thoroughness. This is done using the <code>auditor_critique.j2</code> prompt.</p>
+<h4>Step 8 — Critique-Revise Loop</h4>
+<p>If the self-critique score is below <code>self_critique_retry_threshold</code> (default 6), the critique's reasoning is fed back to the primary LLM as explicit instructions to fix the specific issues. The model produces a revised answer, which is scored again. This loop repeats up to <code>max_revision_attempts</code> times. The best-scoring answer across all attempts is kept. The <code>Revision_Count</code> field in the output tells you how many cycles were triggered for each control.</p>
+<h4>Step 9 — Citation Verification</h4>
+<p>Every <code>[Page X of 'Filename']</code> reference in the final answer is checked against the retrieved chunks. If a citation does not appear in the actual context, it is flagged as unverified — a signal that the model may have hallucinated a page number. The <code>Citation_Confidence</code> score (0–100) reports the percentage of verified citations. Unverified citations are listed in <code>Unverified_Citations</code>.</p>
+<h4>Step 10 — Cross-LLM Hallucination Check</h4>
+<p>An independent judge LLM (from the Ollama → Groq → Together AI fallback chain) reads both the answer and the context and checks whether any factual claims are not supported by the retrieved documents. This produces a <code>hallucinated</code> boolean and a list of specific unsupported claims. The judge is different from the primary LLM to avoid self-evaluation bias.</p>
+<h4>Step 11 — Confidence Decomposition</h4>
+<p>The final <code>Confidence_Score</code> (0–100) is computed from three independent sub-scores, each measuring a different quality dimension:</p>
+<table>
+<thead>
+<tr>
+  <th>Sub-score</th>
+  <th>What it measures</th>
+  <th>Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Retrieval_Confidence_Score</code></td>
+  <td>Retrieved docs vs. target count — was there enough context?</td>
+  <td>20%</td>
+</tr>
+<tr>
+  <td><code>Answer_Confidence_Score</code></td>
+  <td>Self-critique score × 10 — did the model reason well?</td>
+  <td>50%</td>
+</tr>
+<tr>
+  <td><code>Citation_Confidence</code></td>
+  <td>% of cited pages verified in context — are claims grounded?</td>
+  <td>30%</td>
+</tr>
+</tbody>
+</table>
+<p>When <code>enable_self_critique: false</code>, the Answer sub-score is absent and the remaining weights are redistributed (60% Citation, 40% Retrieval). If the cross-LLM check ran, its confidence rating is blended into the final score. A detected hallucination subtracts 30 from the cross-LLM confidence before blending.</p>
+<p>Controls with <code>Confidence_Score</code> below <code>confidence_threshold</code> (default 60) are automatically written to <code>flagged_for_review.json</code>.</p>
+<hr />
+<h3>Multi-project isolation</h3>
+<p>The tool supports running audits for multiple clients in one command using <code>run_all_projects.py</code>. Each project subfolder inside <code>documents/</code> is treated as a separate audit:</p>
+<ul>
+<li>Its documents are indexed into its own <code>faiss_index_client/</code> stored inside the project folder</li>
+<li>Its results go into its own <code>outputs/</code> subfolder</li>
+<li>Its document language can be set independently (e.g. BPN = Spanish, CapitalFlow = English)</li>
+<li>The shared regulations index is reused across all projects</li>
+</ul>
+<p>Loose PDF files at the <code>documents/</code> root (not inside any subfolder) are used when running <code>src/run_audit.py</code> directly — this is the default dataset.</p>
+<hr />
+<h3>Phase 2: Validation architecture (4 layers)</h3>
+<p>When expert reference answers are available, <code>validate_audit.py</code> adds four additional scoring layers:</p>
+<table>
+<thead>
+<tr>
+  <th>Layer</th>
+  <th>Who validates</th>
+  <th>What it checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Layer 1 — Self-Critique</strong></td>
+  <td>Done in Phase 1</td>
+  <td>Truthfulness and thoroughness of the answer</td>
+</tr>
+<tr>
+  <td><strong>Layer 2 — Cross-LLM</strong></td>
+  <td>Done in Phase 1</td>
+  <td>Unsupported factual claims</td>
+</tr>
+<tr>
+  <td><strong>Layer 3 — CrossEncoder</strong></td>
+  <td>Semantic model (no LLM)</td>
+  <td>Similarity between AI answer and expert answer</td>
+</tr>
+<tr>
+  <td><strong>Layer 4 — LLM-as-Judge</strong></td>
+  <td>Judge LLM</td>
+  <td>Accuracy, Stability, Drift Resistance, Guardrail tone</td>
+</tr>
+</tbody>
+</table>
+<p>The final <code>Weighted_Accuracy_Score</code> in the validation CSV weights Tier 1 controls at 3×, Tier 2 at 2×, and Tier 3 at 1×.</p>
+<hr />
+<h2>3. Before You Start — Know Your Resources</h2>
+<p>Answer these three questions before you choose how to run the tool.</p>
 <hr />
 <p><strong>Question 1: How much time do I have?</strong></p>
 <ul>
-<li><strong>A few hours for a quick draft</strong> → Use LITE mode in the notebook (Section 9). Skips independent checking, faster output.</li>
+<li><strong>A few hours for a quick draft</strong> → Use LITE mode in the notebook (Section 10). Skips independent checking, faster output.</li>
 <li><strong>A full day or overnight run</strong> → Use the full pipeline (<code>python src/run_audit.py</code>). Includes all validation layers.</li>
 </ul>
 <hr />
@@ -183,7 +313,7 @@
 </tbody>
 </table>
 <hr />
-<h2>3. Validation Strategy A — Cross-LLM as Judge</h2>
+<h2>4. Validation Strategy A — Cross-LLM as Judge</h2>
 <h3>What it means</h3>
 <p>When the primary AI model (GPT-4o-mini or Gemini) generates an audit answer, a <strong>second, completely separate AI model</strong> then reads both the answer and the source documents, and checks whether every factual claim in the answer is actually supported by the documents it cites.</p>
 <p>This mimics the role of an independent reviewer in a traditional audit: someone who did not write the report reads it against the source files and flags anything that cannot be verified.</p>
@@ -310,7 +440,7 @@
 <p><strong>The tool tries providers in this order: Ollama → Groq → Together AI → fallback.</strong>
 If Ollama is running, it is used first. If it is not installed, Groq is tried. If Groq's quota is exhausted mid-run, Together AI takes over automatically. You do not need to manage this manually.</p>
 <hr />
-<h2>4. Validation Strategy B — Self-Critique Only</h2>
+<h2>5. Validation Strategy B — Self-Critique Only</h2>
 <h3>What it means</h3>
 <p>Instead of using a second AI model to check the work, the same primary model that wrote the audit answer re-reads it alongside the source documents and scores its own response on a scale of 0 to 10 — evaluating how truthful and thorough it is.</p>
 <p>This is faster and uses roughly three times fewer tokens than full cross-LLM validation (~800 tokens per control vs ~2,500 tokens in full mode). However, it is the same model checking its own output. This is analogous to asking an auditor to sign off on their own work without any independent review.</p>
@@ -324,7 +454,7 @@ If Ollama is running, it is used first. If it is not installed, Groq is tried. I
 <h3>Regulatory warning</h3>
 <p>Most financial regulators and model risk frameworks (including SR 11-7, the ECB Guide on Internal Models, and EBA model risk guidelines) require <strong>independent</strong> validation. Self-critique alone — where the same model grades its own output — is unlikely to satisfy these requirements. <strong>Do not submit a self-critique-only audit report to a regulator or external reviewer without also running Strategy A.</strong></p>
 <h3>How to use it</h3>
-<p>In the Jupyter notebook (<code>notebooks/interactive_audit.ipynb</code>), set the following at the top of Section 0:</p>
+<p>In the Jupyter notebook, set the following at the top of Section 0:</p>
 <pre><code class="language-python">LITE_MODE = True          # skips cross-LLM check
 SKIP_SELF_CRITIQUE = False # keeps self-critique scoring
 </code></pre>
@@ -334,82 +464,108 @@ SKIP_SELF_CRITIQUE = False # keeps self-critique scoring
   enable_cross_llm_critique: false
 </code></pre>
 <hr />
-<h2>5. Step-by-Step: Running a Full Audit</h2>
+<h2>6. Step-by-Step: Running a Full Audit</h2>
 <h3>Prerequisites</h3>
 <p>Before running the tool, confirm:</p>
 <ul>
 <li>[ ] Python 3.10 or later is installed</li>
 <li>[ ] You have run <code>pip install -r requirements.txt</code> at least once</li>
 <li>[ ] Your <code>.env</code> file exists in the project root and contains at least <code>OPENAI_API_KEY</code></li>
-<li>[ ] Your client PDF documents are placed in the <code>documents/</code> folder</li>
+<li>[ ] Your client PDF documents are placed in the <code>documents/</code> folder (or a subfolder for multi-project runs)</li>
 <li>[ ] Your audit control checklist is saved as <code>inputs/rcm_input.csv</code></li>
 <li>[ ] (Optional) Expert reference answers are in <code>inputs/rcm_expert_answer.csv</code></li>
 </ul>
 <hr />
-<h3>Path 1: Full pipeline — audit and validate in one command</h3>
-<p>This is the recommended approach. It runs the audit, then immediately validates the results.</p>
+<h3>Path 1: Single project — audit only</h3>
+<p>The most common approach for a single client. Skips validation (no expert answers needed).</p>
+<pre><code class="language-bash">python src/run_audit.py --no-validation
+</code></pre>
+<p>Documents are read from the folder specified by <code>paths.documents_folder</code> in <code>config.yaml</code> (default: <code>documents/</code>). Only PDF files at the root of that folder are loaded — subfolders are not scanned.</p>
+<hr />
+<h3>Path 2: Full pipeline — audit and validate in one command</h3>
+<p>Use this when you have expert reference answers and want the full validation report.</p>
 <pre><code class="language-bash">python src/run_audit.py
 </code></pre>
 <p>This single command:</p>
 <ol>
-<li>Reads all documents in <code>documents/</code> and builds the search index</li>
+<li>Reads all documents and builds the search index</li>
 <li>Processes every control in <code>rcm_input.csv</code></li>
 <li>Generates audit answers with evidence citations</li>
+<li>Runs self-correction if answers score below threshold</li>
 <li>Runs the independent judge model for hallucination checks</li>
 <li>Saves all results into a timestamped folder under <code>outputs/</code></li>
 <li>Automatically runs the validation step against expert answers</li>
-<li>Saves the final <code>val_metrics_*.csv</code> in the same folder</li>
 </ol>
-<p>When it finishes, you will see a message like:</p>
-<pre><code>All outputs saved to: outputs/20260320T143022Z/
+<hr />
+<h3>Path 3: Resume an interrupted run</h3>
+<p>If a run is interrupted (network error, power failure, etc.), every completed row is saved to a <code>checkpoint.json</code> file inside the run folder. Resume from where it left off:</p>
+<pre><code class="language-bash">python src/run_audit.py --resume outputs/20260320T143022Z/ --no-validation
+</code></pre>
+<p>The tool skips already-completed rows, continues from the next one, and saves the final <code>audit_results.json</code> when done. The checkpoint file is deleted on successful completion.</p>
+<hr />
+<h3>Path 4: Multiple projects in one command</h3>
+<p>When you have multiple client folders inside <code>documents/</code>, run all of them sequentially with per-project document isolation:</p>
+<pre><code class="language-bash">python run_all_projects.py
+</code></pre>
+<p>This script:</p>
+<ul>
+<li>Detects each subfolder in <code>documents/</code> (e.g. <code>BPN/</code>, <code>CapitalFlow/</code>, <code>UCI/</code>)</li>
+<li>Builds a separate FAISS index inside each project folder</li>
+<li>Runs <code>src/run_audit.py --no-validation</code> for each project</li>
+<li>Moves the results into <code>documents/PROJECT/outputs/TIMESTAMP/</code></li>
+</ul>
+<p>Per-project settings (such as document language) are configured in the <code>PROJECT_OVERRIDES</code> dictionary at the top of <code>run_all_projects.py</code>:</p>
+<pre><code class="language-python">PROJECT_OVERRIDES = {
+    &quot;BPN&quot;:         {&quot;rag_settings&quot;: {&quot;document_language&quot;: &quot;Spanish&quot;}},
+    &quot;CapitalFlow&quot;: {&quot;rag_settings&quot;: {&quot;document_language&quot;: &quot;English&quot;}},
+    &quot;UCI&quot;:         {&quot;rag_settings&quot;: {&quot;document_language&quot;: &quot;Spanish&quot;}},
+}
 </code></pre>
 <hr />
-<h3>Path 2: Audit only, then validate separately</h3>
-<p>If you want to inspect the raw audit results before running validation:</p>
-<pre><code class="language-bash"># Step 1: Run the audit
-python src/run_audit.py
-
-# Step 2: Run validation separately (auto-detects the latest run folder)
-python src/validate_audit.py
+<h3>Path 5: Validation only</h3>
+<p>If you already have audit results and want to run validation separately:</p>
+<pre><code class="language-bash">python src/validate_audit.py
 </code></pre>
+<p>This auto-detects the latest run folder in <code>outputs/</code>.</p>
 <hr />
-<h3>Path 3: Run the interactive notebook for spot checks</h3>
+<h3>Path 6: Interactive notebook for spot checks</h3>
 <p>For checking individual controls before committing to a full run:</p>
 <pre><code class="language-bash">jupyter notebook notebooks/interactive_audit.ipynb
 </code></pre>
-<p>See Section 9 of this manual for how to use the notebook.</p>
+<p>See Section 10 of this manual for how to use the notebook.</p>
 <hr />
 <h3>Filtering by tier</h3>
-<p>If you only want to audit Tier 1 controls (the highest-risk controls), edit <code>config.yaml</code>:</p>
+<p>Edit <code>config.yaml</code> before running:</p>
 <pre><code class="language-yaml">filtering:
   tier: '1'    # options: 'all', '1', '2', '3'
 </code></pre>
-<p>Change this before running. Tier 1 is the default.</p>
+<p>Tier 1 is the default. Changing to <code>'all'</code> processes all 67 controls; expect roughly 3× the time and tokens.</p>
 <hr />
 <h3>What to expect during a run</h3>
-<p>The tool prints progress for each control as it processes:</p>
 <pre><code>Run ID: 20260320T143022Z
 Output folder: outputs/20260320T143022Z/
 Initializing RAG Engine...
+Filtered for Tier: 1. Remaining rows: 32
 Processing 32 rows...
 Processing row 1/32 (CSV row 2)...
+  [Decomposition] 3 sub-queries for 6.2
 Processing row 2/32 (CSV row 3)...
+  [Remediation] Score 4/10 &lt; 6 — revising answer for 7.3 (attempt 1/2)...
+  [Remediation] Best score after 1 revision(s): 7/10 for 7.3
+  [Citation] 1 unverified citation(s) for 9.3: ['Page 12 of Marco Metodologico.pdf']
 ...
 Audit results saved to outputs/20260320T143022Z/audit_results.json
 Flagged 5/32 controls for human review
-Starting validation step...
-Judge LLM: Ollama (local) / llama3.1:8b
-...
-Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_20260320T143022Z_ollama_llama3.1-8b.csv
 </code></pre>
 <p>A full run of 32 Tier 1 controls typically takes:</p>
 <ul>
-<li><strong>With Groq as judge:</strong> 15–25 minutes</li>
+<li><strong>With Groq as judge, no self-correction triggered:</strong> 15–25 minutes</li>
+<li><strong>With self-correction on ~30% of rows:</strong> add 5–10 minutes</li>
 <li><strong>With Ollama on CPU:</strong> 60–120 minutes</li>
 <li><strong>With Ollama on GPU:</strong> 20–40 minutes</li>
 </ul>
 <hr />
-<h2>6. Understanding Your Results</h2>
+<h2>7. Understanding Your Results</h2>
 <h3>Compliance Verdict</h3>
 <p>Each control receives one of four verdicts:</p>
 <table>
@@ -438,7 +594,7 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 </tr>
 </tbody>
 </table>
-<p>An &quot;Insufficient Info&quot; verdict does not mean the bank is non-compliant — it means the documents provided to the tool do not allow a conclusion to be drawn. Additional documents may be needed.</p>
+<p>An &quot;Insufficient Info&quot; verdict does not mean the bank is non-compliant — it means the documents provided to the tool do not allow a conclusion to be drawn. Additional documents may be needed. Note that the tool automatically attempts one expanded retrieval before settling on this verdict.</p>
 <hr />
 <h3>Check Classification</h3>
 <p>Each control is automatically classified into one of three categories, which determines how strictly the AI scrutinises the evidence:</p>
@@ -470,13 +626,65 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 </table>
 <p>QUANTITATIVE_CHECKs apply the strictest scrutiny. The AI requires numerical parameters, empirical validation results, and confidence intervals to be cited explicitly.</p>
 <hr />
-<h3>Confidence Score (0–100)</h3>
-<p>This score reflects how certain the tool is about its own answer. It is a blend of the self-critique score and the cross-LLM hallucination check.</p>
+<h3>Confidence Score (0–100) and Sub-Scores</h3>
+<p>The overall <code>Confidence_Score</code> is a weighted composite of three independent sub-scores:</p>
+<table>
+<thead>
+<tr>
+  <th>Sub-score field</th>
+  <th>What it measures</th>
+  <th>Ideal value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Retrieval_Confidence_Score</code></td>
+  <td>Ratio of retrieved chunks to the target count — was there enough context?</td>
+  <td>100 (retrieved ≥ rerank_top_k)</td>
+</tr>
+<tr>
+  <td><code>Answer_Confidence_Score</code></td>
+  <td>Self-critique score × 10 — did the model reason correctly and thoroughly?</td>
+  <td>80–100</td>
+</tr>
+<tr>
+  <td><code>Citation_Confidence</code></td>
+  <td>% of <code>[Page X of 'File']</code> citations verified against retrieved context</td>
+  <td>100 (all grounded)</td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li><strong>80–100:</strong> High confidence. The answer is well-supported and the independent checker found no issues.</li>
+<li><strong>80–100 overall:</strong> High confidence. Well-supported answer, no unverified citations.</li>
 <li><strong>60–79:</strong> Moderate confidence. Review the answer but it is likely reliable.</li>
-<li><strong>Below 60:</strong> Low confidence. The control is automatically flagged for human review. This does not mean the answer is wrong — it means a human auditor should verify it.</li>
+<li><strong>Below 60:</strong> Low confidence. Automatically flagged for human review.</li>
 </ul>
+<p>A low <code>Retrieval_Confidence_Score</code> with a high <code>Answer_Confidence_Score</code> suggests the model answered well but from thin evidence — verify that the right documents are indexed. A low <code>Citation_Confidence</code> with a reasonable overall score is a hallucination warning — inspect <code>Unverified_Citations</code>.</p>
+<hr />
+<h3>Self-Correction Indicators</h3>
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>What it tells you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Revision_Count</code></td>
+  <td>0 = answer was accepted on first try; 1 or 2 = revision cycles were triggered</td>
+</tr>
+<tr>
+  <td><code>Retrieval_Expanded</code></td>
+  <td>true = the &quot;Insufficient Info&quot; expanded retrieval fallback was used</td>
+</tr>
+<tr>
+  <td><code>Unverified_Citations</code></td>
+  <td>Page references in the answer not found in the retrieved context</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>Revision_Count</code> of 2 on many controls may indicate that the document language setting is wrong, or that the documents don't contain sufficient evidence for those controls.</p>
 <hr />
 <h3>Validation Scores (val_metrics CSV)</h3>
 <p>When expert reference answers are available, the validation report adds four additional dimensions:</p>
@@ -516,39 +724,39 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 </tr>
 </tbody>
 </table>
-<p>The overall <strong>Weighted Accuracy Score</strong> multiplies each control's accuracy score by its tier weight (Tier 1 = 3×, Tier 2 = 2×, Tier 3 = 1×) and averages the result. This gives higher-risk controls more influence on the summary metric.</p>
+<p>The overall <strong>Weighted Accuracy Score</strong> multiplies each control's accuracy score by its tier weight (Tier 1 = 3×, Tier 2 = 2×, Tier 3 = 1×) and averages the result.</p>
 <hr />
 <h3>Flagged Controls</h3>
-<p>Any control that meets one or more of these conditions is written to <code>flagged_for_review.json</code> and marked for human attention:</p>
+<p>Any control that meets one or more of these conditions is written to <code>flagged_for_review.json</code>:</p>
 <ul>
 <li>Self-critique score below 6 out of 10</li>
 <li>Confidence score below 60 out of 100</li>
 <li>Verdict of &quot;Insufficient Info&quot;</li>
 <li>Independent checker detected a claim not supported by the documents</li>
 </ul>
-<p>Flagged controls are not failures — they are the tool's way of saying &quot;a human auditor should look at this one.&quot; In a well-functioning audit, you would expect 10–30% of controls to be flagged for review.</p>
+<p>Flagged controls are not failures — they are the tool's way of saying &quot;a human auditor should look at this one.&quot; In a well-functioning audit, expect 10–30% of controls to be flagged.</p>
 <hr />
-<h2>7. The Output Folder — What Each File Means</h2>
-<p>Each run creates its own folder inside <code>outputs/</code>, named by the timestamp of when the run started:</p>
-<pre><code>outputs/
-  20260320T143022Z/
-    audit_results.json
-    run_manifest.json
-    flagged_for_review.json
-    val_metrics_20260320T143022Z_ollama_llama3.1-8b.csv
+<h2>8. The Output Folder — What Each File Means</h2>
+<p>Each run creates its own folder inside <code>outputs/</code>, named by the timestamp when the run started. For multi-project runs, this folder is moved inside the project's own directory.</p>
+<pre><code>outputs/20260320T143022Z/          ← single project run
+documents/BPN/outputs/20260320T143022Z/    ← multi-project run
+  audit_results.json
+  run_manifest.json
+  flagged_for_review.json
+  val_metrics_20260320T143022Z_ollama_llama3.1-8b.csv
+  checkpoint.json                  ← only present during an active or interrupted run
 </code></pre>
 <hr />
 <h3>audit_results.json</h3>
-<p>The main output. Contains one entry per control with:</p>
-<ul>
-<li>The full AI-written answer</li>
-<li>Page and document citations for each claim</li>
-<li>Compliance verdict</li>
-<li>Self-critique score and reasoning</li>
-<li>Hallucination flag from the independent checker</li>
-<li>Confidence score</li>
-</ul>
-<p>This is the file you would use to review individual control answers.</p>
+<p>The main output. Contains one entry per control with all fields described in Section 7. Convert to Excel using:</p>
+<pre><code class="language-bash">python json_to_xlsx.py   # edit the FILES list inside the script first
+</code></pre>
+<hr />
+<h3>checkpoint.json</h3>
+<p>Written after every completed row during a run. If the run completes successfully, this file is deleted. If the run is interrupted, it remains and can be used to resume:</p>
+<pre><code class="language-bash">python src/run_audit.py --resume outputs/20260320T143022Z/ --no-validation
+</code></pre>
+<p>Do not delete this file manually while a run is in progress or if you intend to resume.</p>
 <hr />
 <h3>run_manifest.json</h3>
 <p>A record of exactly how this run was produced. Contains:</p>
@@ -561,11 +769,11 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 <p>The document fingerprints are important for regulatory defensibility: they prove that the documents used in the audit have not been modified after the fact. If a regulator asks &quot;which version of the policy was audited?&quot;, the SHA-256 hash in the manifest answers that question definitively.</p>
 <hr />
 <h3>flagged_for_review.json</h3>
-<p>A filtered list of only the controls that require human attention, with the specific reason each was flagged. Use this as your starting point for manual review — you do not need to read all 32 or 68 controls; focus on the flagged ones first.</p>
+<p>A filtered list of only the controls that require human attention, with the specific reason each was flagged. Use this as your starting point for manual review — focus on flagged controls first.</p>
 <hr />
 <h3>val_metrics_*.csv</h3>
 <p>The validation report. The filename includes the UTC timestamp and the name of the judge model used (e.g. <code>ollama_llama3.1-8b</code>), so you can always trace a report back to the exact model that produced it.</p>
-<p>Open this file in Excel or any spreadsheet tool. Key columns to review:</p>
+<p>Key columns:</p>
 <ul>
 <li><code>Control Reference</code> — the control ID</li>
 <li><code>Compliance_Verdict</code> — Compliant / Non-Compliant / Partial / Insufficient Info</li>
@@ -575,47 +783,53 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 <li><code>Answers based on Clients data</code> — the expert reference answer (for comparison)</li>
 </ul>
 <hr />
-<h2>8. Configuring the Tool</h2>
-<p>All settings are in <code>config.yaml</code> in the project root. Open it with any text editor. The most commonly changed settings are:</p>
+<h2>9. Configuring the Tool</h2>
+<p>All settings are in <code>config.yaml</code> in the project root. Open it with any text editor.</p>
 <h3>Which controls to run</h3>
 <pre><code class="language-yaml">filtering:
   tier: '1'    # change to '2', '3', or 'all'
 </code></pre>
-<h3>Using your own language documents</h3>
-<p>If your client documents are in a language other than Spanish:</p>
+<h3>Document language (per project)</h3>
 <pre><code class="language-yaml">rag_settings:
-  document_language: &quot;Portuguese&quot;   # or &quot;English&quot;, &quot;French&quot;, &quot;German&quot;, etc.
+  document_language: &quot;Spanish&quot;   # or &quot;English&quot;, &quot;French&quot;, &quot;Portuguese&quot;, etc.
 </code></pre>
-<p>The retrieval and reranking systems adapt automatically.</p>
-<h3>Turning off regulation documents</h3>
-<p>If you only want the tool to search client documents (not the EBA/IFRS 9 regulation PDFs):</p>
+<p>This controls the language of the HyDE hypothetical used for retrieval. It must match the language of your client documents. For multi-project runs, override this per project in <code>run_all_projects.py</code> instead of changing <code>config.yaml</code>.</p>
+<h3>Enable query decomposition</h3>
+<p>For complex compound controls, query decomposition retrieves richer evidence by splitting the control into sub-questions:</p>
 <pre><code class="language-yaml">rag_settings:
-  use_regulations: false
+  use_query_decomposition: false   # set true to enable; adds ~1 LLM call per row
 </code></pre>
-<p>This saves approximately 1,500 tokens per control and speeds up the run.</p>
-<h3>Changing which Ollama model to use</h3>
+<h3>Enable or disable self-correction</h3>
+<pre><code class="language-yaml">validation:
+  enable_self_critique: true
+  self_critique_retry_threshold: 6   # revise if score &lt; this (0-10)
+  max_revision_attempts: 2           # max revision cycles before accepting best
+  critique_llm: &quot;primary&quot;            # &quot;primary&quot; = same model; &quot;judge&quot; = independent chain
+</code></pre>
+<p>Setting <code>critique_llm: &quot;primary&quot;</code> (default) uses GPT-4o-mini to score its own answers — faster and simpler. Setting <code>&quot;judge&quot;</code> uses the Ollama/Groq chain for a more independent evaluation.</p>
+<h3>Enable or disable cross-LLM hallucination check</h3>
+<pre><code class="language-yaml">validation:
+  enable_cross_llm_critique: true    # requires a judge LLM provider to be available
+  confidence_threshold: 60.0         # controls below this are flagged for human review
+</code></pre>
+<h3>Skip or include validation step</h3>
+<pre><code class="language-yaml">audit_trail:
+  run_validation: false   # set true to run validate_audit.py after the audit
+</code></pre>
+<p>This can also be overridden at runtime:</p>
+<pre><code class="language-bash">python src/run_audit.py --no-validation
+</code></pre>
+<h3>Turn off regulation documents</h3>
+<pre><code class="language-yaml">rag_settings:
+  use_regulations: false   # saves ~1,500 tokens per control; faster runs
+</code></pre>
+<h3>Changing the Ollama model</h3>
 <pre><code class="language-yaml">judge_llm:
-  ollama_model: &quot;llama3.1:8b&quot;   # must match a model you have pulled with 'ollama pull'
-</code></pre>
-<h3>Enabling or disabling validation layers</h3>
-<pre><code class="language-yaml">validation:
-  enable_self_critique: true          # judge LLM scores each answer 0-10
-  enable_cross_llm_critique: true     # independent hallucination check
-  confidence_threshold: 60.0          # controls below this are flagged
-</code></pre>
-<h3>Changing the confidence threshold for flagging</h3>
-<p>If you want to flag more controls for review (be more cautious):</p>
-<pre><code class="language-yaml">validation:
-  confidence_threshold: 70.0    # was 60.0 — now flags more controls
+  ollama_model: &quot;llama3.1:8b&quot;   # must match a model pulled with 'ollama pull'
 </code></pre>
 <hr />
-<h2>9. Using the Interactive Notebook for Spot Checks</h2>
-<p>The notebook (<code>notebooks/interactive_audit.ipynb</code>) lets you test individual controls without running the full pipeline. This is useful when:</p>
-<ul>
-<li>You want to verify the tool is retrieving the right document sections</li>
-<li>You want to check one specific control before committing to a full run</li>
-<li>You are adjusting settings and want to see the effect quickly</li>
-</ul>
+<h2>10. Using the Interactive Notebook for Spot Checks</h2>
+<p>The notebook (<code>notebooks/interactive_audit.ipynb</code>) lets you test individual controls without running the full pipeline.</p>
 <h3>Starting the notebook</h3>
 <pre><code class="language-bash">jupyter notebook notebooks/interactive_audit.ipynb
 </code></pre>
@@ -684,13 +898,11 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 </tbody>
 </table>
 <h3>LITE mode vs FULL mode</h3>
-<p>At the top of Section 0, you control token usage:</p>
 <pre><code class="language-python">LITE_MODE = True    # True = answer only (~800 tokens/row)
                     # False = answer + self-critique + cross-LLM (~2,500 tokens/row)
 </code></pre>
-<p>Use LITE mode when exploring. Switch to FULL mode when you need the complete validation.</p>
 <hr />
-<h2>10. Troubleshooting</h2>
+<h2>11. Troubleshooting</h2>
 <h3>&quot;Connection error&quot; in AI_Answer column</h3>
 <p>The primary AI model (OpenAI) could not be reached. Check:</p>
 <ol>
@@ -705,36 +917,53 @@ Validation complete. Report saved to outputs/20260320T143022Z/val_metrics_202603
 <p>If Ollama is not running, start it:</p>
 <pre><code class="language-bash">ollama serve
 </code></pre>
-<h3>&quot;Error: Extra data&quot; in val_metrics reasoning column</h3>
-<p>The judge model returned text after its JSON response. This is handled automatically since version March 2026. If you see it in older runs, re-run <code>validate_audit.py</code>.</p>
+<h3>Many controls returning Revision_Count = 2</h3>
+<p>This means most answers scored below 6/10 on self-critique and used both revision attempts. Likely causes:</p>
+<ul>
+<li>Wrong <code>document_language</code> (retrieval is finding irrelevant chunks)</li>
+<li>Documents do not contain sufficient evidence for these controls (correct verdict is &quot;Insufficient Info&quot;)</li>
+<li><code>enable_self_critique: true</code> with a very strict judge — try lowering <code>self_critique_retry_threshold</code> to 5</li>
+</ul>
+<h3>High Unverified_Citations count</h3>
+<p>The model is citing pages that were not in the retrieved context. Possible causes:</p>
+<ul>
+<li>The LLM is hallucinating page numbers (flag for human review)</li>
+<li>The documents use non-standard page numbering (e.g. Roman numerals, section numbers) that don't match PDF page indices</li>
+</ul>
 <h3>Run is very slow</h3>
-<p>If Ollama is being used as judge on a CPU-only machine, each control check takes 15–30 seconds. For 32 controls with self-critique + cross-LLM, expect 30–60 minutes. Options:</p>
+<p>If Ollama is being used as judge on a CPU-only machine, each control check takes 15–30 seconds. Options:</p>
 <ul>
 <li>Use Groq instead (add <code>GROQ_API_KEY</code> to <code>.env</code>)</li>
 <li>Disable self-critique: <code>enable_self_critique: false</code> in <code>config.yaml</code></li>
 <li>Use a smaller Ollama model: <code>ollama pull llama3.2</code> (2 GB, faster)</li>
 </ul>
 <h3>Groq quota exhausted mid-run</h3>
-<p>You will see a message like <code>Provider exhausted. Trying next...</code> — the tool automatically switches to Together AI and continues. No action needed. If you also see Together AI failing, add an Ollama fallback (see Option A3).</p>
+<p>You will see <code>Provider exhausted. Trying next...</code> — the tool automatically switches to Together AI and continues. If Together AI also fails, add Ollama as a fallback (see Section 4, Option A3).</p>
+<h3>Run interrupted — how to resume</h3>
+<p>Find the run folder (it will contain a <code>checkpoint.json</code> file):</p>
+<pre><code class="language-bash">python src/run_audit.py --resume outputs/20260320T143022Z/ --no-validation
+</code></pre>
+<p>For a multi-project run, the output folder is inside the project folder:</p>
+<pre><code class="language-bash">python src/run_audit.py --resume documents/BPN/outputs/20260320T143022Z/ --no-validation
+</code></pre>
 <h3>Results look irrelevant — wrong document sections retrieved</h3>
-<p>Open the notebook and run Section 1 (RAG Debug) with your control's question. If the retrieved chunks are not from the right documents, try:</p>
+<p>Open the notebook and run Section 1 (RAG Debug) with your control's question. If the retrieved chunks are wrong, try:</p>
 <ul>
-<li>Lowering <code>retrieval_score_threshold</code> in <code>config.yaml</code> (e.g. from 1.8 to 1.5) for stricter filtering</li>
-<li>Increasing <code>client_top_k</code> to retrieve more chunks</li>
-<li>Checking that your PDFs are properly placed in <code>documents/</code> (not in subfolders)</li>
+<li>Checking <code>document_language</code> matches your documents</li>
+<li>Enabling <code>use_query_decomposition: true</code> for compound controls</li>
+<li>Increasing <code>client_top_k</code> to retrieve more candidates before reranking</li>
 </ul>
 <h3>FAISS index seems stale after adding new documents</h3>
-<p>Delete the index folders and let the tool rebuild them:</p>
-<pre><code class="language-bash"># Windows
+<p>Delete the index folder for that project and let the tool rebuild it:</p>
+<pre><code class="language-bash"># For a single project run (default index)
 rmdir /s /q faiss_index_client
-rmdir /s /q faiss_index_regs
 
-# Mac/Linux
-rm -rf faiss_index_client faiss_index_regs
+# For a specific project
+rmdir /s /q &quot;documents/BPN/faiss_index_client&quot;
 </code></pre>
-<p>The next run will rebuild the indices from scratch.</p>
+<p>The next run will rebuild the index from scratch.</p>
 <hr />
-<h2>11. Quick Reference Card</h2>
+<h2>12. Quick Reference Card</h2>
 <h3>Commands</h3>
 <table>
 <thead>
@@ -745,12 +974,28 @@ rm -rf faiss_index_client faiss_index_regs
 </thead>
 <tbody>
 <tr>
+  <td>Audit only (no validation)</td>
+  <td><code>python src/run_audit.py --no-validation</code></td>
+</tr>
+<tr>
   <td>Full audit + validation</td>
   <td><code>python src/run_audit.py</code></td>
 </tr>
 <tr>
+  <td>Resume interrupted run</td>
+  <td><code>python src/run_audit.py --resume outputs/TIMESTAMP/ --no-validation</code></td>
+</tr>
+<tr>
+  <td>All projects in documents/</td>
+  <td><code>python run_all_projects.py</code></td>
+</tr>
+<tr>
   <td>Validation only (latest run)</td>
   <td><code>python src/validate_audit.py</code></td>
+</tr>
+<tr>
+  <td>Convert results to Excel</td>
+  <td><code>python json_to_xlsx.py</code> (edit FILES list inside)</td>
 </tr>
 <tr>
   <td>Client policy summary</td>
@@ -762,7 +1007,7 @@ rm -rf faiss_index_client faiss_index_regs
 </tr>
 </tbody>
 </table>
-<h3>Key files to know</h3>
+<h3>Key files</h3>
 <table>
 <thead>
 <tr>
@@ -789,11 +1034,23 @@ rm -rf faiss_index_client faiss_index_regs
 </tr>
 <tr>
   <td><code>documents/</code></td>
-  <td>Put your client PDFs here</td>
+  <td>Loose PDFs for single-project runs</td>
+</tr>
+<tr>
+  <td><code>documents/PROJECT/</code></td>
+  <td>PDFs for multi-project runs</td>
 </tr>
 <tr>
   <td><code>outputs/&lt;timestamp&gt;/</code></td>
-  <td>All results from a run</td>
+  <td>All results from a single-project run</td>
+</tr>
+<tr>
+  <td><code>documents/PROJECT/outputs/&lt;timestamp&gt;/</code></td>
+  <td>All results from a multi-project run</td>
+</tr>
+<tr>
+  <td><code>run_all_projects.py</code></td>
+  <td>Per-project language overrides</td>
 </tr>
 </tbody>
 </table>
@@ -823,13 +1080,33 @@ rm -rf faiss_index_client faiss_index_regs
   <td>Include EBA regulation docs in search</td>
 </tr>
 <tr>
+  <td><code>rag_settings.use_query_decomposition</code></td>
+  <td><code>false</code></td>
+  <td>Split compound controls into sub-queries</td>
+</tr>
+<tr>
   <td><code>validation.enable_self_critique</code></td>
-  <td><code>true</code></td>
-  <td>Score each answer 0–10 (uses judge LLM)</td>
+  <td><code>false</code></td>
+  <td>Score each answer 0–10</td>
+</tr>
+<tr>
+  <td><code>validation.critique_llm</code></td>
+  <td><code>primary</code></td>
+  <td>Which LLM scores the answer (<code>primary</code> or <code>judge</code>)</td>
+</tr>
+<tr>
+  <td><code>validation.self_critique_retry_threshold</code></td>
+  <td><code>6</code></td>
+  <td>Trigger revision if score below this</td>
+</tr>
+<tr>
+  <td><code>validation.max_revision_attempts</code></td>
+  <td><code>2</code></td>
+  <td>Max revision cycles per control</td>
 </tr>
 <tr>
   <td><code>validation.enable_cross_llm_critique</code></td>
-  <td><code>true</code></td>
+  <td><code>false</code></td>
   <td>Independent hallucination check</td>
 </tr>
 <tr>
@@ -838,14 +1115,81 @@ rm -rf faiss_index_client faiss_index_regs
   <td>Below this → flagged for human review</td>
 </tr>
 <tr>
+  <td><code>audit_trail.run_validation</code></td>
+  <td><code>false</code></td>
+  <td>Run validate_audit.py after audit</td>
+</tr>
+<tr>
   <td><code>judge_llm.ollama_model</code></td>
   <td><code>llama3.1:8b</code></td>
   <td>Which local Ollama model to use</td>
 </tr>
 </tbody>
 </table>
+<h3>audit_results.json — key output fields per control</h3>
+<table>
+<thead>
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Classification</code></td>
+  <td>DOCUMENTATION_CHECK / METHODOLOGY_CHECK / QUANTITATIVE_CHECK</td>
+</tr>
+<tr>
+  <td><code>AI_Answer</code></td>
+  <td>Full written answer with page citations</td>
+</tr>
+<tr>
+  <td><code>Compliance_Verdict</code></td>
+  <td>Compliant / Non-Compliant / Partial / Insufficient Info</td>
+</tr>
+<tr>
+  <td><code>Validation_Score</code></td>
+  <td>Self-critique score 0–10</td>
+</tr>
+<tr>
+  <td><code>Confidence_Score</code></td>
+  <td>Weighted composite 0–100</td>
+</tr>
+<tr>
+  <td><code>Retrieval_Confidence_Score</code></td>
+  <td>Context coverage sub-score 0–100</td>
+</tr>
+<tr>
+  <td><code>Answer_Confidence_Score</code></td>
+  <td>Reasoning quality sub-score 0–100</td>
+</tr>
+<tr>
+  <td><code>Citation_Confidence</code></td>
+  <td>% of citations grounded in retrieved context</td>
+</tr>
+<tr>
+  <td><code>Unverified_Citations</code></td>
+  <td>Page references not found in context</td>
+</tr>
+<tr>
+  <td><code>Revision_Count</code></td>
+  <td>Number of self-correction cycles triggered</td>
+</tr>
+<tr>
+  <td><code>Retrieval_Expanded</code></td>
+  <td>Whether expanded retrieval fallback was used</td>
+</tr>
+<tr>
+  <td><code>Cross_LLM_Hallucinated</code></td>
+  <td>True if independent checker flagged unsupported claims</td>
+</tr>
+<tr>
+  <td><code>Cross_LLM_Concerns</code></td>
+  <td>List of specific unsupported claims found</td>
+</tr>
+</tbody>
+</table>
 <h3>Judge LLM fallback order</h3>
-<p>The tool tries these providers in order, using the first one available:</p>
 <ol>
 <li><strong>Ollama</strong> (local) — if installed and running</li>
 <li><strong>Groq</strong> — if <code>GROQ_API_KEY</code> is in <code>.env</code></li>
@@ -853,6 +1197,348 @@ rm -rf faiss_index_client faiss_index_regs
 <li><strong>Secondary provider</strong> (Google or OpenAI, whichever is not primary)</li>
 <li><strong>Primary LLM</strong> — last resort</li>
 </ol>
+<hr />
+<h2>Annex A — Architecture Diagram</h2>
+<p>The diagram below shows the complete data flow of the tool, from entry points through the RAG engine, RCM engine, validation layers, and optional output modules.</p>
+<p><img src="images/mermaid-diagram-2026-03-27-154310.png" alt="Architecture Diagram" /></p>
+<blockquote>
+<p>To regenerate the diagram: copy the contents of <code>marmaid_code_arquitecture.txt</code> into <a href="https://mermaid.live">mermaid.live</a> and export as PNG.</p>
+</blockquote>
+<hr />
+<h2>Annex B — Technical Module Reference</h2>
+<p>This annex describes what each Python source file does at the code level. It is intended for developers, validators, and anyone who needs to understand, audit, or modify the pipeline.</p>
+<hr />
+<h3>B.1 <code>config.py</code> — Configuration Loader</h3>
+<p><strong>What it does:</strong> Loads <code>config.yaml</code> and <code>.env</code> into a global <code>CONFIG</code> dict accessible by all other modules. Resolves all relative paths to absolute paths anchored at the project root.</p>
+<p><strong>Key behaviour:</strong></p>
+<ul>
+<li>The environment variable <code>AUDIT_CONFIG_PATH</code> allows a subprocess (e.g. <code>run_all_projects.py</code>) to point the tool at a different YAML file without modifying the original <code>config.yaml</code>. This is how per-project configurations are injected.</li>
+<li><code>PROJECT_ROOT</code> is computed as the parent of the <code>src/</code> directory and used throughout the codebase to build absolute paths.</li>
+<li>All path values in <code>config.yaml</code> (documents folder, FAISS index paths, CSV paths) are resolved relative to <code>PROJECT_ROOT</code> at load time, so the tool can be invoked from any working directory.</li>
+</ul>
+<hr />
+<h3>B.2 <code>llm_factory.py</code> — LLM and Embeddings Factory</h3>
+<p><strong>What it does:</strong> Provides three public functions — <code>get_llm()</code>, <code>get_embeddings()</code>, and <code>get_judge_llm()</code> — that instantiate the correct AI provider based on <code>config.yaml</code>.</p>
+<p><strong>Primary LLM (<code>get_llm</code>):</strong></p>
+<ul>
+<li>Returns a <code>ChatOpenAI</code> or <code>ChatGoogleGenerativeAI</code> instance depending on <code>llm_settings.provider</code>.</li>
+<li>Temperature is always <code>0.0</code> to ensure deterministic, reproducible audit answers.</li>
+</ul>
+<p><strong>Embeddings (<code>get_embeddings</code>):</strong></p>
+<ul>
+<li>Returns <code>OpenAIEmbeddings</code> (<code>text-embedding-3-small</code>) or <code>GoogleGenerativeAIEmbeddings</code> (<code>embedding-001</code>).</li>
+<li>Used by the RAG engine to embed document chunks and queries into the same vector space.</li>
+</ul>
+<p><strong>Judge LLM (<code>get_judge_llm</code>) — Fallback Chain:</strong></p>
+<p>This is the most complex part of the factory. The judge LLM is intentionally different from the primary LLM so it can provide independent validation. The resolution order is controlled by <code>judge_llm.provider</code> in <code>config.yaml</code>:</p>
+<table>
+<thead>
+<tr>
+  <th>Step</th>
+  <th>Provider</th>
+  <th>How it is tried</th>
+  <th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td><strong>Ollama</strong></td>
+  <td>Sends a <code>&quot;ping&quot;</code> message to <code>localhost:11434</code></td>
+  <td>Local, zero cost, zero quota, fully private</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><strong>Groq</strong></td>
+  <td>Checks for <code>GROQ_API_KEY</code> in <code>.env</code></td>
+  <td>Free cloud, fast, 100k tokens/day</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><strong>Together AI</strong></td>
+  <td>Checks for <code>TOGETHER_API_KEY</code> in <code>.env</code></td>
+  <td>Free model available (<code>Llama-3.3-70B-Instruct-Turbo-Free</code>)</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><strong>Secondary provider</strong></td>
+  <td>Google if primary is OpenAI, or vice versa</td>
+  <td>Still independent from primary</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><strong>Primary LLM</strong></td>
+  <td>Always available</td>
+  <td>Least independent, last resort</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>_try_*</code> private functions each return <code>None</code> on failure rather than raising, so the chain advances silently. The <code>get_fallback_judge_llm(skip=[...])</code> function is used mid-run when a provider exhausts its quota (daily token limit, credit limit, or auth failure) — it rebuilds the chain excluding the failed provider so the run continues without interruption.</p>
+<p>The label of whichever provider was selected is stored in <code>_judge_llm_label</code> and used to name the output CSV (<code>val_metrics_&lt;timestamp&gt;_&lt;judge&gt;.csv</code>), making it auditable which model performed the validation.</p>
+<hr />
+<h3>B.3 <code>rag_engine.py</code> — Retrieval-Augmented Generation Engine</h3>
+<p><strong>What it does:</strong> Builds and manages the FAISS vector stores, and implements the full retrieval pipeline: document loading → chunking → embedding → indexing → HyDE query generation → similarity search → L2 threshold filtering → CrossEncoder reranking.</p>
+<h4>Document Loading and Indexing</h4>
+<p><code>load_documents_from_folder(folder_path)</code> iterates over all PDFs in a folder using <code>PyPDFLoader</code> (from LangChain). Each page becomes a separate <code>Document</code> object with <code>metadata['page']</code> and <code>metadata['source']</code> set.</p>
+<p><code>_build_or_load_index(index_name, folder_path)</code> either loads an existing FAISS index from disk (<code>FAISS.load_local</code>) or builds a new one from scratch. When building:</p>
+<ol>
+<li>Documents are split into overlapping chunks (<code>RecursiveCharacterTextSplitter</code>, default 1200 chars / 300 overlap).</li>
+<li>Chunks are embedded in batches of 10, with a 5-second delay between batches to avoid API rate limits.</li>
+<li>The index is saved to disk so subsequent runs skip re-embedding.</li>
+</ol>
+<p>Two indices are maintained separately:</p>
+<ul>
+<li><code>faiss_index_client/</code> — per-project client documents (path is configurable to enable isolation)</li>
+<li><code>faiss_index_regs/</code> — shared regulation documents (IFRS 9 / EBA, path is fixed)</li>
+</ul>
+<h4>HyDE Query Generation (<code>generate_search_query</code>)</h4>
+<p>Instead of embedding the raw English audit question and searching Spanish documents, the engine first asks the primary LLM to write a <strong>hypothetical answer</strong> in the document language (<code>document_language</code> from config). This hypothetical paragraph uses the same vocabulary, phrasing, and technical terms that the real bank policy document would use — dramatically improving retrieval accuracy for cross-lingual setups.</p>
+<p>Example: for the audit question <em>&quot;Does the bank document its PD model validation frequency?&quot;</em>, HyDE produces a Spanish paragraph like: <em>&quot;El banco lleva a cabo un proceso de validación anual del modelo de PD en el que se evalúa la estabilidad del ranking...&quot;</em> — which is much closer in embedding space to the actual policy document text than the original English question.</p>
+<h4>Source-Balanced Retrieval</h4>
+<p>Both the client and regulations indices are queried <strong>independently</strong> using the HyDE query:</p>
+<ul>
+<li>Client: up to <code>client_top_k</code> (default 6) nearest neighbours</li>
+<li>Regulations: up to <code>regs_top_k</code> (default 2) nearest neighbours</li>
+</ul>
+<p>The independent caps prevent regulations from crowding out the client policy content. If regulations were queried together with client docs in a single pool, the IFRS 9 standard text (which is highly uniform and always relevant) would often rank above the specific client policy pages that actually answer the audit question.</p>
+<h4>L2 Threshold Filtering (<code>_filter_by_threshold</code>)</h4>
+<p>After retrieval, chunks with L2 distance &gt; <code>retrieval_score_threshold</code> (default 1.8) are discarded. The threshold is permissive relative to standard monolingual setups because cross-lingual embeddings — even with HyDE — naturally produce higher L2 distances than same-language pairs. A value of 1.8 corresponds roughly to cosine similarity of –0.62, meaning only true noise is discarded. If all chunks fail the threshold (which can happen for very specific controls), the filter is bypassed and the closest results are used to ensure the LLM always receives some context.</p>
+<h4>CrossEncoder Reranking</h4>
+<p>After threshold filtering, the combined pool (client + regulation chunks) is reranked using <code>sentence_transformers.CrossEncoder</code> with the model <code>cross-encoder/mmarco-mMiniLMv2-L12-H384-v1</code>. This is a multilingual MS MARCO-trained model that scores each (original query, chunk) pair jointly — capturing semantic relevance that bi-encoder FAISS cannot.</p>
+<p>The top <code>rerank_top_k</code> (default 7) chunks after reranking are passed to the LLM. The reranker is lazy-loaded (on first use) and cached for the remainder of the run.</p>
+<hr />
+<h3>B.4 <code>rcm_engine.py</code> — Core Audit Logic</h3>
+<p><strong>What it does:</strong> Implements the <code>RcmAuditor</code> class whose <code>process_row(row)</code> method takes a single RCM CSV row and returns a result dict with the AI answer, verdict, and all quality scores. This is the heart of the pipeline.</p>
+<h4>Prompt Injection Protection</h4>
+<p>Before any chunk is passed to the LLM, <code>_sanitize_chunk(text)</code> scans it against a list of regular expressions that match common prompt injection patterns (<code>IGNORE PREVIOUS INSTRUCTIONS</code>, <code>jailbreak</code>, <code>DAN mode</code>, etc.). Matches are replaced with <code>[REDACTED]</code>. This prevents a malicious actor from embedding instructions inside a PDF that would hijack the LLM's behaviour.</p>
+<h4><code>_build_context(retrieved_docs)</code> → <code>(context_text, evidence_dict)</code></h4>
+<p>Formats the retrieved chunks into a numbered context string, with each chunk prefixed by its page marker <code>[Page N of 'Filename']</code>. Also builds an <code>evidence_dict</code> mapping filenames to sets of page numbers — used later to populate the <code>Evidence_Sources</code> field.</p>
+<h4><code>_parse_response(full_response)</code> → <code>(answer, evidence, verdict, classification)</code></h4>
+<p>The primary LLM is instructed to return <strong>only valid JSON</strong> via <code>auditor_response.j2</code>. This function parses that JSON and extracts the four structured fields. If JSON parsing fails (e.g. the model wraps the response in a markdown code block, or produces malformed JSON), it falls back automatically to the original regex-based extraction — searching for <code>&lt;answer&gt;</code>, <code>&lt;evidence_sources&gt;</code>, and <code>**COMPLIANCE VERDICT:**</code> tags. This dual approach means a badly formatted model response never silently loses the answer.</p>
+<h4><code>_verify_citations(answer, context_text)</code> → <code>{total, verified, unverified, confidence}</code></h4>
+<p>Uses a regular expression to find every <code>[Page X of 'Filename']</code> reference in the answer, then checks whether the exact same string appears in <code>context_text</code>. A citation is <strong>verified</strong> if the page was actually retrieved (i.e. it exists in the context); <strong>unverified</strong> citations are page numbers the model may have hallucinated. Returns a confidence percentage: <code>verified / total * 100</code>. Controls with unverified citations are logged and their <code>Citation_Confidence</code> sub-score is reduced.</p>
+<h4><code>_run_self_critique(context_text, query, answer)</code> → <code>{score, reasoning, hallucination_rate}</code></h4>
+<p>Renders <code>auditor_critique.j2</code> with the context and answer, then invokes the critique LLM (either the primary LLM or the judge chain, depending on <code>critique_llm</code> config). The template asks the LLM to score the answer 0–10 on truthfulness and completeness, explain its reasoning, and estimate a hallucination rate (0.0–1.0). Returns <code>score: 0</code> on any failure so the pipeline continues gracefully.</p>
+<h4><code>_cross_llm_critique(context_text, answer)</code> → <code>{hallucinated, unsupported_claims, confidence_in_answer}</code></h4>
+<p>Uses a separate LLM (from the judge chain) to independently check whether the answer contains claims not supported by the retrieved context. The prompt explicitly instructs the checker <em>not</em> to penalise for missing information — only to flag invented facts. Returns a boolean <code>hallucinated</code> flag and a list of specific unsupported claims. Uses a persistent provider queue across rows: if Groq exhausts its daily quota on row 30, the queue advances to Together AI for all remaining rows without interruption.</p>
+<h4><code>_decompose_query(design_assessment, test_procedure)</code> → <code>[sub_query, ...]</code> or <code>None</code></h4>
+<p>When <code>use_query_decomposition: true</code>, asks the primary LLM to split the compound audit control into 2–3 focused, independent sub-questions, returned as a JSON array. Only enabled explicitly because it adds one extra LLM call per row. If decomposition fails (malformed JSON, API error), returns <code>None</code> and the caller falls back to single-query retrieval.</p>
+<h4><code>process_row(row)</code> — The 8-Step Pipeline</h4>
+<pre><code>Step 1 — Initial retrieval
+  ├─ Optionally decompose into sub-queries (_decompose_query)
+  ├─ Retrieve per sub-query and merge, OR single retrieve
+  └─ Build context string → generate answer via auditor_response.j2
+
+Step 2 — Expanded retrieval (only if verdict == &quot;Insufficient Info&quot;)
+  ├─ Widen search: threshold +0.4, client_top_k +4
+  ├─ Re-retrieve with looser filter
+  └─ Regenerate answer with wider context
+
+Step 3 — Self-critique (if enable_self_critique: true)
+  └─ Score the answer 0–10 via auditor_critique.j2
+
+Step 4 — Critique-Revise loop (if score &lt; self_critique_retry_threshold)
+  ├─ Render auditor_revision.j2 with previous answer + critique reasoning
+  ├─ Re-score the revised answer
+  ├─ Keep the best (highest-scored) answer across all attempts
+  └─ Repeat up to max_revision_attempts times
+
+Step 5 — Citation verification
+  └─ Check every [Page X of 'File'] against context_text
+
+Step 6 — Cross-LLM hallucination check (if enable_cross_llm_critique: true)
+  └─ Independent judge LLM checks for unsupported claims
+
+Step 7 — Confidence decomposition
+  ├─ Retrieval_Confidence  = min(num_retrieved / rerank_top_k, 1.0) × 100   [weight 20%]
+  ├─ Answer_Confidence     = (critique_score / 10) × 100                    [weight 50%]
+  ├─ Citation_Confidence   = verified_citations / total_citations × 100      [weight 30%]
+  ├─ base_confidence       = 0.5 × Answer + 0.3 × Citation + 0.2 × Retrieval
+  └─ If cross-LLM ran: final = (base_confidence + cross_conf) / 2
+     (cross_conf is penalised –30 if hallucinated flag is true)
+
+Step 8 — Build result dict
+  └─ All input row fields + all computed fields returned
+</code></pre>
+<p>If <code>enable_self_critique</code> is <code>false</code>, the Answer sub-score is absent and the weight redistribution is: 60% Citation + 40% Retrieval.</p>
+<hr />
+<h3>B.5 <code>run_audit.py</code> — Entry Point</h3>
+<p><strong>What it does:</strong> Orchestrates a full audit run — reads the RCM CSV, loops over rows, calls <code>RcmAuditor.process_row()</code> for each, and saves all output files into a timestamped folder.</p>
+<p><strong>Key mechanics:</strong></p>
+<ul>
+<li><strong>Timestamped run folder:</strong> <code>outputs/YYYYMMDDTHHMMSSZ/</code>. Created fresh for each new run. All output files go here.</li>
+<li><strong>Tier filtering:</strong> Reads <code>filtering.tier</code> from config. If not <code>'all'</code>, filters the DataFrame to rows matching the tier value before processing.</li>
+<li><strong>Checkpoint system:</strong> After each row, <code>results</code> (a list of dicts) is serialised to <code>checkpoint.json</code> in the run folder. If the run is interrupted, it can be resumed with <code>--resume &lt;run_folder&gt;</code>. On resume, <code>done_refs</code> is built from the checkpoint and already-completed rows are skipped. The checkpoint is deleted on successful completion.</li>
+<li><strong>SHA-256 document hashing:</strong> Before processing, every file in <code>documents/</code> and <code>regulations/</code> is hashed. Hashes are saved in <code>run_manifest.json</code>. This allows proving to regulators that the same documents were used for the audit as were present at run time.</li>
+<li><strong>Flagging logic:</strong> After the main loop, each result is checked against <code>flag_score_threshold</code> (self-critique score), <code>confidence_threshold</code>, <code>Insufficient Info</code> verdict, and <code>Cross_LLM_Hallucinated</code>. Any control meeting one or more conditions is written to <code>flagged_for_review.json</code>.</li>
+<li><strong>Validation trigger:</strong> If <code>audit_trail.run_validation: true</code> (or <code>--no-validation</code> was not passed), <code>validate_audit()</code> is called automatically after the audit loop. The output CSV is written into the same run folder.</li>
+</ul>
+<hr />
+<h3>B.6 <code>run_all_projects.py</code> — Multi-Project Orchestrator</h3>
+<p><strong>What it does:</strong> Discovers project subfolders inside <code>documents/</code>, writes a temporary per-project <code>config.yaml</code> for each, and runs <code>src/run_audit.py --no-validation</code> as a subprocess for each project. After the run, it moves the timestamped output folder from <code>outputs/</code> into <code>documents/&lt;PROJECT&gt;/outputs/</code>.</p>
+<p><strong>Per-project isolation:</strong></p>
+<ul>
+<li>The temporary config sets <code>paths.documents_folder</code> to the project subfolder and <code>paths.faiss_index_client</code> to <code>documents/&lt;PROJECT&gt;/faiss_index_client/</code>.</li>
+<li>The subprocess receives <code>AUDIT_CONFIG_PATH=&lt;temp_yaml_path&gt;</code> as an environment variable, which <code>config.py</code> reads at import time.</li>
+<li>Because <code>faiss_index_client</code> is per-project, embedding builds for one project never interfere with another.</li>
+</ul>
+<p><strong>Language overrides:</strong></p>
+<ul>
+<li>The <code>PROJECT_OVERRIDES</code> dict at the top of the script lets you set per-project <code>document_language</code> (and any other config key). For example, CapitalFlow uses <code>&quot;English&quot;</code> while BPN and UCI use <code>&quot;Spanish&quot;</code>.</li>
+<li>These overrides are merged into the temporary config before it is written to disk.</li>
+</ul>
+<hr />
+<h3>B.7 <code>validate_audit.py</code> — Validation Phase</h3>
+<p><strong>What it does:</strong> Compares the AI-generated answers from <code>audit_results.json</code> against expert reference answers from <code>rcm_expert_answer.csv</code>. Produces <code>val_metrics_&lt;timestamp&gt;_&lt;judge&gt;.csv</code> with per-control scores on four dimensions.</p>
+<p><strong>4-Layer validation:</strong></p>
+<table>
+<thead>
+<tr>
+  <th>Layer</th>
+  <th>Implemented by</th>
+  <th>When it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Self-critique</td>
+  <td><code>rcm_engine.py</code> / <code>_run_self_critique</code></td>
+  <td>During Phase 1 (per row)</td>
+</tr>
+<tr>
+  <td>Cross-LLM hallucination check</td>
+  <td><code>rcm_engine.py</code> / <code>_cross_llm_critique</code></td>
+  <td>During Phase 1 (per row)</td>
+</tr>
+<tr>
+  <td>CrossEncoder semantic similarity</td>
+  <td><code>sentence_transformers.CrossEncoder</code></td>
+  <td>During Phase 2 (no LLM cost)</td>
+</tr>
+<tr>
+  <td>LLM-as-judge vs expert answer</td>
+  <td>Judge LLM via <code>auditor_critique.j2</code> logic</td>
+  <td>During Phase 2</td>
+</tr>
+</tbody>
+</table>
+<p>The CrossEncoder layer computes a cosine similarity between the AI answer embedding and the expert answer embedding, producing <code>Cross_Encoder_Score</code> (0–100). This layer costs no LLM tokens.</p>
+<p>The LLM-as-judge layer asks the judge LLM to score the AI answer on four dimensions relative to the expert answer:</p>
+<ul>
+<li><strong>Accuracy</strong> — Does the AI answer reach the same conclusions as the expert?</li>
+<li><strong>Stability</strong> — Is the reasoning internally consistent?</li>
+<li><strong>Drift Resistance</strong> — Does the answer stay grounded in the documents (no hallucination drift)?</li>
+<li><strong>Guardrail Effectiveness</strong> — Is the tone professional and suitable for a regulatory submission?</li>
+</ul>
+<p>The final <code>Weighted_Accuracy_Score</code> applies tier weights (Tier 1 × 3, Tier 2 × 2, Tier 3 × 1) to produce a risk-adjusted overall metric.</p>
+<hr />
+<h3>B.8 Prompt Templates (<code>templates/</code>)</h3>
+<table>
+<thead>
+<tr>
+  <th>File</th>
+  <th>Used by</th>
+  <th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>auditor_response.j2</code></td>
+  <td><code>rcm_engine.py</code> / <code>process_row</code></td>
+  <td>Main audit answer generation. Receives <code>context</code>, <code>design_assessment</code>, <code>test_procedure</code>. Instructs the LLM to return a JSON object with <code>classification</code>, <code>answer</code>, <code>evidence_sources</code>, <code>compliance_verdict</code>.</td>
+</tr>
+<tr>
+  <td><code>auditor_critique.j2</code></td>
+  <td><code>rcm_engine.py</code> / <code>_run_self_critique</code></td>
+  <td>Self-critique scoring. Receives <code>context</code>, <code>query</code>, <code>answer</code>. Instructs the LLM to return JSON with <code>score</code> (0–10), <code>reasoning</code>, <code>hallucination_rate</code> (0.0–1.0).</td>
+</tr>
+<tr>
+  <td><code>auditor_revision.j2</code></td>
+  <td><code>rcm_engine.py</code> / critique-revise loop</td>
+  <td>Revision after a low critique score. Receives <code>context</code>, <code>design_assessment</code>, <code>test_procedure</code>, <code>previous_answer</code>, <code>critique_reasoning</code>. Returns same JSON schema as <code>auditor_response.j2</code>.</td>
+</tr>
+<tr>
+  <td><code>client_summary.j2</code></td>
+  <td><code>run_summary.py</code></td>
+  <td>Generates a markdown summary of the client's policies across 13 IFRS 9 governance topics. Receives the full retrieved context.</td>
+</tr>
+</tbody>
+</table>
+<p>All answer and revision templates use <strong>structured JSON output</strong> (<code>{&quot;classification&quot;: ..., &quot;answer&quot;: ..., &quot;evidence_sources&quot;: ..., &quot;compliance_verdict&quot;: ...}</code>). This replaces the original XML-tag + regex approach and is significantly more robust to model variability. The <code>_parse_response()</code> function in <code>rcm_engine.py</code> retains the regex fallback for backward compatibility.</p>
+<hr />
+<h3>B.9 Data Flow Summary</h3>
+<pre><code>rcm_input.csv
+    │
+    ▼  (per row)
+run_audit.py ──► RcmAuditor.process_row()
+                     │
+                     ├─ 1. (optional) _decompose_query()   ← primary LLM, 1 extra call
+                     ├─ 2. RagEngine.retrieve()
+                     │       ├─ generate_search_query()    ← HyDE: primary LLM
+                     │       ├─ FAISS search (client + regs separately)
+                     │       ├─ _filter_by_threshold()     ← L2 ≤ 1.8
+                     │       └─ CrossEncoder rerank         ← mmarco model, no LLM
+                     ├─ 3. auditor_response.j2              ← primary LLM (~800 tokens)
+                     ├─ 4. Expanded retrieval if &quot;Insufficient Info&quot;  ← primary LLM
+                     ├─ 5. _run_self_critique()             ← critique LLM (~600 tokens)
+                     ├─ 6. auditor_revision.j2 (if score low) ← primary LLM (~800 tokens each)
+                     ├─ 7. _verify_citations()             ← no LLM (regex)
+                     ├─ 8. _cross_llm_critique()           ← judge LLM (~1000 tokens)
+                     └─ 9. Confidence decomposition        ← no LLM (arithmetic)
+                          │
+                          ▼
+                    audit_results.json (one entry per row)
+                          │
+                          ▼
+                    validate_audit.py (optional)
+                          ├─ CrossEncoder vs expert answer  ← no LLM
+                          └─ LLM-as-judge vs expert answer  ← judge LLM
+                               │
+                               ▼
+                         val_metrics_&lt;ts&gt;_&lt;judge&gt;.csv
+</code></pre>
+<p><strong>Token cost per control (approximate):</strong></p>
+<table>
+<thead>
+<tr>
+  <th>Mode</th>
+  <th>LLM calls</th>
+  <th>Tokens/row</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>LITE (answer only, no critique)</td>
+  <td>2 (HyDE + answer)</td>
+  <td>~800</td>
+</tr>
+<tr>
+  <td>+ self-critique (primary LLM)</td>
+  <td>3</td>
+  <td>~1 400</td>
+</tr>
+<tr>
+  <td>+ critique-revise 1 revision</td>
+  <td>5</td>
+  <td>~2 600</td>
+</tr>
+<tr>
+  <td>+ cross-LLM check</td>
+  <td>+1</td>
+  <td>~+1 000</td>
+</tr>
+<tr>
+  <td>+ query decomposition</td>
+  <td>+1</td>
+  <td>~+300</td>
+</tr>
+<tr>
+  <td>Full pipeline (all enabled, 2 revisions)</td>
+  <td>up to 8</td>
+  <td>~4 000–5 000</td>
+</tr>
+</tbody>
+</table>
 <hr />
 
   </div>

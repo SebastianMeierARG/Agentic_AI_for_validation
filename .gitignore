@@ -4,9 +4,9 @@ __pycache__/
 .env.example
 .venv
 documents/
+old_inputs/
+old_outputs/
 regulations/
-outputs/
-faiss_index_client/
 faiss_index_server/
 faiss_index_regs/
 .csv
