@@ -57,8 +57,8 @@ judge_llm:
   # Priority order when provider is "auto". First available provider wins.
   # Reorder this list to change preference.
   auto_order:
-    - "ollama"
     - "groq"
+    - "ollama"
     - "together"
 
   # Model names per provider:
@@ -68,7 +68,7 @@ judge_llm:
   ollama_base_url: "http://localhost:11434"
 
 validation:
-  enable_self_critique: true
+  enable_self_critique: false
   # Use the secondary LLM provider to independently grade the answer.
   # Requires both OPENAI_API_KEY and GEMINI_API_KEY to be set in .env.
   enable_cross_llm_critique: false

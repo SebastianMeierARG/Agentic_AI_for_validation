@@ -243,8 +243,10 @@ def main():
     else:
         print("\nValidation step skipped (--no-validation flag set).")
 
-    print(f"\nAll outputs saved to: {run_dir}")
-
+    run_end = datetime.now(timezone.utc)
+    duration = run_end - run_start
+    print(f"\nAudit process completed in {duration}.")
+    print(f"All outputs saved to: {run_dir}")
 
 if __name__ == "__main__":
     main()
