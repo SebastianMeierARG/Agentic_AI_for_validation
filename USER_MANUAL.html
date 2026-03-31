@@ -157,7 +157,36 @@
 <p>When <code>use_query_decomposition: true</code> is set in <code>config.yaml</code>, the tool first asks the primary LLM to split the control into 2–3 focused sub-questions. Each sub-question is then used independently for retrieval. The results are merged and deduplicated before answer generation, giving the model richer, more complete evidence. If decomposition is disabled (the default), a single query is used.</p>
 <h4>Step 2 — HyDE Retrieval</h4>
 <p>Instead of searching the documents using the raw audit question (which is in English), the tool generates a <strong>hypothetical answer</strong> — a paragraph written in the language of your client documents (Spanish, English, etc.) that describes what a compliant policy would look like. This technique is called HyDE (Hypothetical Document Embedding).</p>
-<p>The reason: if your documents are in Spanish and the query is in English, the embedding distance between them is artificially large because the two languages occupy slightly different regions of the vector space. By generating the hypothetical in the document language, the search becomes effectively monolingual, producing much better retrieval.</p>
+<p><strong>Why it is necessary:</strong> the embedding model (<code>text-embedding-3-small</code>) maps text into a high-dimensional vector space. Spanish text and English text occupy slightly different regions of that space — even when they mean the same thing. If you embed the English question and search against Spanish document chunks, the L2 distances are artificially large and the wrong pages get retrieved. By generating the hypothetical in Spanish, the search becomes effectively monolingual, and the embedding distances become meaningful.</p>
+<p><strong>Concrete example:</strong></p>
+<p>The audit question entering the tool (always English, from the RCM CSV):</p>
+<pre><code>&quot;We are auditing '1.1'. The requirement is: 'The bank must have a formally
+approved PD model validation policy'. We must verify: 'Confirm that a written
+validation policy exists, approved by the Board, and specifies validation frequency.'&quot;
+</code></pre>
+<p>What HyDE produces (Spanish, mimicking the style of a real bank governance document):</p>
+<pre><code>&quot;El banco dispone de una Política de Validación de Modelos Internos formalmente
+aprobada por el Consejo de Administración en sesión ordinaria del 15 de marzo de
+2024. Dicha política establece la periodicidad mínima anual para los modelos de
+Probabilidad de Incumplimiento (PD), define los responsables del proceso de
+validación independiente, y especifica los umbrales de aceptación para las pruebas
+de backtesting, PSI y discriminación (Gini, KS). Los resultados son documentados
+en informes formales elevados al Comité de Riesgos.&quot;
+</code></pre>
+<p>What a real chunk from your PDF looks like:</p>
+<pre><code>&quot;La Política de Validación de Modelos, aprobada por el Directorio en febrero de
+2025, establece que los modelos de PD serán sometidos a validación independiente
+con periodicidad anual, cuyos resultados serán elevados al Comité de Riesgos...&quot;
+</code></pre>
+<p>The HyDE paragraph and the real chunk are both in Spanish, use the same terminology (<em>PD</em>, <em>periodicidad anual</em>, <em>Comité de Riesgos</em>, <em>validación independiente</em>), and land <strong>close together</strong> in vector space → correctly retrieved. The original English question would land far away and likely miss this chunk entirely.</p>
+<p><strong>What HyDE does NOT do:</strong> the hypothetical paragraph is used <strong>only as a search key</strong>. It is never shown to the LLM that writes the final answer. The LLM only sees the real retrieved chunks from your actual documents.</p>
+<p><strong>What the prompt instructs the LLM to include in the hypothetical:</strong></p>
+<ul>
+<li>Technical IFRS 9 vocabulary (PD, LGD, ECL, SICR...)</li>
+<li>Methodological synonyms (e.g. <em>backtesting</em> → also mention <em>PSI</em>, <em>stability</em>, <em>out-of-time validation</em>) — because your document may use a different term than the audit question</li>
+<li>Formal governance document phrasing (<em>aprobado por el Directorio</em>, <em>elevado al Comité</em>...)</li>
+</ul>
+<p>This synonym expansion is critical: if the audit question says &quot;backtesting&quot; but your policy says &quot;validación retrospectiva&quot;, only the hypothetical paragraph bridges that gap in the search.</p>
 <h4>Step 3 — Source-Balanced FAISS Retrieval</h4>
 <p>The hypothetical is embedded and used to search two separate vector stores:</p>
 <ul>
