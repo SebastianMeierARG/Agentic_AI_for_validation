@@ -89,7 +89,7 @@ graph TD
     FAISSRegs -->|"top_k=2"| FilterL2
     FilterL2 --> Reranker
     Reranker -->|"7 ranked chunks"| AuditPrompt
-    HyDE -->|"original question"| AuditPrompt
+    InputCSV -->|"design_assessment + test_procedure"| AuditPrompt
     AuditPrompt -->|"if Insufficient Info"| ExpandRetrieval
     ExpandRetrieval -->|"wider context"| AuditPrompt
     AuditPrompt -->|"JSON answer"| SelfCritique
@@ -120,7 +120,7 @@ graph TD
             L1["Layer 1 - Self-Critique<br/>done in Phase 1"]:::judge
             L2["Layer 2 - Cross-LLM Check<br/>done in Phase 1"]:::judge
             L3["Layer 3 - CrossEncoder<br/>Semantic similarity vs Expert<br/>Cross_Encoder_Score 0-100"]:::process
-            L4["Layer 4 - LLM-as-Judge<br/>GPT-4o-mini<br/>4 dimensions 0-100"]:::llm
+            L4["Layer 4 - LLM-as-Judge<br/>Judge LLM (Ollama/Groq/Together)<br/>4 dimensions 0-100"]:::llm
         end
 
 
