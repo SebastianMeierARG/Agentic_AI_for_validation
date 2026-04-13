@@ -1,0 +1,82 @@
+{
+    "run_id": "20260413T110709Z",
+    "timestamp_utc": "2026-04-13T11:07:09.357745+00:00",
+    "llm_provider": "openai",
+    "llm_model": "gpt-4o-mini",
+    "tier_filter": "1",
+    "total_controls_processed": 32,
+    "document_hashes": {
+        "Política de Previsionamiento_modificada sep 2025.pdf": "b573d9e2744d45169f98164237412021ba07d86ee5d24d1da49cf1049661a6e3",
+        "Respuesta Memorando final Inspección 2025_Perdida Esperada NIIF.pdf": "600f50bd2e332053917b7c794f383a5775672825b8c88dabf2eb697ba87d195a"
+    },
+    "regulation_hashes": {
+        "Guidelines on Accounting for ECL (EBA-GL-2017-06)_EN.pdf": "e693a41ff2b306da8383ecda085170037181d34c8aa64191577865672e97fdf7"
+    },
+    "results_file": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\outputs\\20260413T110709Z\\audit_results.json",
+    "config_snapshot": {
+        "llm_settings": {
+            "provider": "openai",
+            "temperature": 0.0,
+            "openai": {
+                "model": "gpt-4o-mini",
+                "embedding_model": "text-embedding-3-small"
+            },
+            "google": {
+                "model": "models/gemini-pro-latest",
+                "embedding_model": "models/embedding-001"
+            }
+        },
+        "rag_settings": {
+            "chunk_size": 1200,
+            "chunk_overlap": 300,
+            "document_language": "Spanish",
+            "retrieval_score_threshold": 1.8,
+            "use_regulations": false,
+            "client_top_k": 6,
+            "regs_top_k": 2,
+            "rerank_top_k": 7,
+            "use_query_decomposition": false,
+            "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+        },
+        "paths": {
+            "input_csv": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\inputs\\rcm_input.csv",
+            "output_json": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\outputs\\audit_results.json",
+            "documents_folder": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\documents",
+            "expert_answers_csv": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\inputs\\rcm_expert_answer.csv",
+            "validation_report_csv": "C:\\Users\\sebat\\GT\\Agentic_AI_for_validation\\outputs\\val_metrics.csv"
+        },
+        "judge_llm": {
+            "provider": "auto",
+            "auto_order": [
+                "groq",
+                "ollama",
+                "together"
+            ],
+            "model": "llama-3.3-70b-versatile",
+            "together_model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+            "ollama_model": "llama3.1:8b",
+            "ollama_base_url": "http://localhost:11434"
+        },
+        "validation": {
+            "enable_self_critique": false,
+            "enable_cross_llm_critique": false,
+            "confidence_threshold": 60.0,
+            "self_critique_retry_threshold": 6,
+            "max_revision_attempts": 2,
+            "critique_llm": "primary"
+        },
+        "audit_trail": {
+            "enabled": true,
+            "flag_score_threshold": 6,
+            "run_validation": false
+        },
+        "filtering": {
+            "tier": "1",
+            "tier_weights": {
+                "1": 3,
+                "2": 2,
+                "3": 1
+            }
+        }
+    }
+}

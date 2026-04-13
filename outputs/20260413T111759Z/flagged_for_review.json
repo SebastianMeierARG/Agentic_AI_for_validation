@@ -1,0 +1,35 @@
+[
+    {
+        "control_reference": 1.1,
+        "compliance_verdict": "Compliant",
+        "validation_score": 0,
+        "confidence_score": 74.3,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6"
+        ]
+    },
+    {
+        "control_reference": 1.2,
+        "compliance_verdict": "Compliant",
+        "validation_score": 0,
+        "confidence_score": 94.3,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6"
+        ]
+    },
+    {
+        "control_reference": 1.3,
+        "compliance_verdict": "Compliant",
+        "validation_score": 0,
+        "confidence_score": 94.3,
+        "cross_llm_hallucinated": null,
+        "cross_llm_concerns": "",
+        "flag_reasons": [
+            "Self-critique score 0 < threshold 6"
+        ]
+    }
+]

@@ -270,7 +270,7 @@ class RagEngine:
                 )
                 final_docs = [doc for doc, _ in ranked[:rerank_top_k]]
                 print(
-                    f"Reranking: {len(combined)} chunks → top {len(final_docs)} selected."
+                    f"Reranking: {len(combined)} chunks -> top {len(final_docs)} selected."
                 )
             except Exception as e:
                 print(f"Reranking failed ({e}). Using source-balanced unranked results.")

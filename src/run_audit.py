@@ -228,7 +228,7 @@ def main():
     try:
         with open(flagged_path, 'w', encoding='utf-8') as f:
             json.dump(flagged, f, indent=4, ensure_ascii=False)
-        print(f"Flagged {len(flagged)}/{len(results)} controls for human review → {flagged_path}")
+        print(f"Flagged {len(flagged)}/{len(results)} controls for human review -> {flagged_path}")
     except Exception as e:
         print(f"Warning: Could not save flagged review file: {e}")
 

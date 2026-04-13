@@ -1,0 +1,161 @@
+---
+id: 0ee480a7-884f-4377-a067-b2dab4f3e42a
+---
+graph TD
+    classDef file fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef process fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    classDef db fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef llm fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef judge fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    classDef output fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef config fill:#fff3e0,stroke:#e65100,stroke-width:2px
+
+    InputCSV["rcm_input.csv<br/>Audit Questions + Tier 1/2/3"]:::file
+    ClientDocs["documents/PROJECT/<br/>Client PDFs - any language"]:::file
+    RegDocs["regulations/<br/>IFRS 9 / EBA PDFs"]:::file
+    ExpertCSV["rcm_expert_answer.csv<br/>Ground Truth"]:::file
+    ConfigYAML["config.yaml + .env<br/>API keys + thresholds<br/>per-project language override"]:::config
+
+
+
+
+    subgraph FACTORY["LLM Factory - llm_factory.py"]
+        direction TB
+        PrimaryLLM["Primary LLM<br/>GPT-4o-mini / Gemini"]:::llm
+        Embeddings["Embeddings<br/>text-embedding-3-small"]:::llm
+        subgraph JUDGE_CHAIN["Judge LLM Fallback Chain"]
+            direction LR
+            J1["1. Ollama<br/>llama3.1:8b<br/>local - zero cost"]:::judge
+            J2["2. Groq<br/>llama-3.3-70b<br/>free cloud"]:::judge
+            J3["3. Together AI<br/>Llama-3.3-70B<br/>free cloud"]:::judge
+            J4["4. Secondary<br/>Provider"]:::judge
+            J5["5. Primary LLM<br/>last resort"]:::judge
+            J1 -->|"fail"| J2 -->|"fail"| J3 -->|"fail"| J4 -->|"fail"| J5
+        end
+    end
+
+    ConfigYAML --> PrimaryLLM
+    ConfigYAML --> Embeddings
+    ConfigYAML --> J1
+
+
+    subgraph PHASE1["Phase 1 - Audit Generation - run_audit.py"]
+        direction TB
+
+
+        subgraph RAG["RAG Engine - rag_engine.py"]
+            direction TB
+            QueryDecomp["Query Decomposition<br/>optional: split compound controls<br/>into 2-3 focused sub-queries"]:::process
+            HyDE["HyDE<br/>Generate hypothetical answer<br/>in document_language"]:::process
+            FAISSClient["faiss_index_client<br/>per-project Client Vector Store"]:::db
+            FAISSRegs["faiss_index_regs<br/>Shared Regulations Vector Store"]:::db
+            FilterL2{"L2 Threshold<br/>Filter <= 1.8"}
+            Reranker["CrossEncoder Reranker<br/>mmarco-mMiniLMv2<br/>multilingual - top_k=7"]:::process
+        end
+
+
+        subgraph RCM["RCM Engine - rcm_engine.py"]
+            direction TB
+            AuditPrompt["Primary LLM<br/>auditor_response.j2<br/>JSON: classification - answer - verdict"]:::llm
+            ExpandRetrieval["Expanded Retrieval<br/>threshold +0.4  top_k +4<br/>triggered on Insufficient Info"]:::process
+            SelfCritique["Self-Critique LLM<br/>auditor_critique.j2<br/>score 0-10  critique_llm: primary or judge"]:::judge
+            ReviseLoop["Critique-Revise Loop<br/>auditor_revision.j2<br/>up to max_revision_attempts - keep best score"]:::llm
+            CitationVerify["Citation Verification<br/>check every Page X of File<br/>against retrieved context chunks"]:::process
+            CrossLLM["Judge LLM<br/>Cross-LLM Hallucination Check<br/>hallucinated bool + unsupported claims"]:::judge
+            ConfCalc["Confidence Decomposition<br/>Retrieval 20% + Answer 50% + Citation 30%<br/>cross-LLM blend when available"]:::process
+        end
+
+
+        subgraph RUNOUT["Timestamped Run Folder - outputs/YYYYMMDDTHHMMSSZ/"]
+            Checkpoint["checkpoint.json<br/>written after every row<br/>deleted on clean completion"]:::output
+            AuditJSON["audit_results.json<br/>Classification  AI_Answer  Verdict<br/>Validation_Score  Confidence_Score<br/>Retrieval + Answer + Citation sub-scores<br/>Revision_Count  Unverified_Citations"]:::output
+            Manifest["run_manifest.json<br/>run_id  config snapshot<br/>SHA-256 doc hashes"]:::output
+            Flagged["flagged_for_review.json<br/>controls below score or confidence threshold"]:::output
+        end
+    end
+
+
+    ClientDocs -->|"chunk + embed"| FAISSClient
+    RegDocs -->|"chunk + embed"| FAISSRegs
+    InputCSV -->|"iterate rows"| QueryDecomp
+    QueryDecomp -->|"sub-queries or single query"| HyDE
+    HyDE -->|"document_language hypothetical"| FAISSClient
+    HyDE -->|"document_language hypothetical"| FAISSRegs
+    FAISSClient -->|"top_k=6"| FilterL2
+    FAISSRegs -->|"top_k=2"| FilterL2
+    FilterL2 --> Reranker
+    Reranker -->|"7 ranked chunks"| AuditPrompt
+    InputCSV -->|"design_assessment + test_procedure"| AuditPrompt
+    AuditPrompt -->|"if Insufficient Info"| ExpandRetrieval
+    ExpandRetrieval -->|"wider context"| AuditPrompt
+    AuditPrompt -->|"JSON answer"| SelfCritique
+    Reranker -->|"context"| SelfCritique
+    SelfCritique -->|"score below threshold"| ReviseLoop
+    ReviseLoop -->|"revised answer"| SelfCritique
+    SelfCritique -->|"best answer"| CitationVerify
+    CitationVerify --> CrossLLM
+    Reranker -->|"context"| CrossLLM
+    SelfCritique --> ConfCalc
+    CrossLLM --> ConfCalc
+    CitationVerify --> ConfCalc
+    Reranker --> ConfCalc
+    ConfCalc --> AuditJSON
+    AuditPrompt --> AuditJSON
+    AuditJSON --> Checkpoint
+    AuditJSON --> Manifest
+    AuditJSON --> Flagged
+
+
+    subgraph PHASE2["Phase 2 - Validation - validate_audit.py"]
+        direction TB
+        MergeDF["Merge on Control Reference"]:::process
+
+
+        subgraph LAYERS["4-Layer Validation Architecture"]
+            direction LR
+            L1["Layer 1 - Self-Critique<br/>done in Phase 1"]:::judge
+            L2["Layer 2 - Cross-LLM Check<br/>done in Phase 1"]:::judge
+            L3["Layer 3 - CrossEncoder<br/>Semantic similarity vs Expert<br/>Cross_Encoder_Score 0-100"]:::process
+            L4["Layer 4 - LLM-as-Judge<br/>Judge LLM (Ollama/Groq/Together)<br/>4 dimensions 0-100"]:::llm
+        end
+
+
+        subgraph DIMS["LLM-as-Judge Scoring Dimensions"]
+            direction LR
+            DA["Accuracy<br/>Validation_Score_LLM"]:::output
+            DS["Stability<br/>Stability_Score"]:::output
+            DD["Drift Resistance<br/>Drift_Resistance_Score"]:::output
+            DG["Guardrail Effectiveness<br/>Guardrail_Score"]:::output
+        end
+
+
+        ValMetrics["val_metrics_ts_judge.csv<br/>Cross_Encoder_Score  Reasoning_LLM<br/>Weighted_Accuracy_Score<br/>Tier1 x3  Tier2 x2  Tier3 x1"]:::output
+    end
+
+
+    AuditJSON -->|"AI Answers"| MergeDF
+    ExpertCSV -->|"Ground Truth"| MergeDF
+    MergeDF --> L3
+    MergeDF --> L4
+    L4 --> DA
+    L4 --> DS
+    L4 --> DD
+    L4 --> DG
+    DA --> ValMetrics
+    DS --> ValMetrics
+    DD --> ValMetrics
+    DG --> ValMetrics
+    L3 --> ValMetrics
+
+
+    subgraph OPT["Optional Modules"]
+        direction LR
+        Summary["run_summary.py<br/>13 IFRS 9 governance topics<br/>from client docs"]:::process
+        PerfReport["generate_performance_report.py<br/>Markdown performance report<br/>from val_metrics CSV"]:::process
+        JsonXlsx["json_to_xlsx.py<br/>convert audit_results.json<br/>to Excel XLSX"]:::process
+    end
+
+
+    ValMetrics --> PerfReport
+    ClientDocs --> Summary
+    AuditJSON --> JsonXlsx

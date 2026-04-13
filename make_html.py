@@ -2,7 +2,8 @@
 Convert any Markdown file to a styled HTML file and open it in the browser.
 
 Usage:
-    python make_html.py                   # converts USER_MANUAL.md → USER_MANUAL.html
+    python make_html.py                   # converts USER_MANUAL.
+    md → USER_MANUAL.html
     python make_html.py CLAUDE.md         # converts any .md file
 """
 
